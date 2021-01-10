@@ -4,7 +4,7 @@ from playback.studio.equalizer import ComparatorResult, EqualityStatus
 from playback.studio.studio import PlaybackStudio, RecordingLookupProperties
 from playback.studio.equalizer_tuning import EqualizerTuning, EqualizerTuner
 from playback.tape_recorder import TapeRecorder
-from tests.mocks.in_memory_tape_cassette import InMemoryTapeCassette
+from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 
 
 class TestPlaybackStudio(unittest.TestCase):

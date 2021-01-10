@@ -10,7 +10,7 @@ from playback.studio.recordings_lookup import find_matching_playable_recordings,
 
 from playback.studio.equalizer import Equalizer, EqualityStatus, ComparatorResult
 from playback.tape_recorder import TapeRecorder
-from tests.mocks.in_memory_tape_cassette import InMemoryTapeCassette
+from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 
 
 def exact_comparator(recorded_result, playback_result):

@@ -1,7 +1,7 @@
 from playback.recordings.memory.memory_recording import MemoryRecording
 from time import sleep
 
-from tests.mocks.in_memory_tape_cassette import InMemoryTapeCassette
+from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 
 
 class DelayedMemoryRecording(MemoryRecording):

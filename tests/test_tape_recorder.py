@@ -9,7 +9,7 @@ from time import sleep
 
 from playback.interception.output_interception import OutputInterceptionDataHandler
 from playback.tape_recorder import TapeRecorder, CapturedArg
-from tests.mocks.in_memory_tape_cassette import InMemoryTapeCassette
+from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 
 
 class TestTapeRecorder(unittest.TestCase):
