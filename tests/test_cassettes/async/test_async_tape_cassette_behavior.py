@@ -1,6 +1,6 @@
 import unittest
 
-from playback.tape_cassettes.async_record_only_tape_cassette import AsyncRecordOnlyTapeCassette
+from playback.tape_cassettes.async.async_record_only_tape_cassette import AsyncRecordOnlyTapeCassette
 from tests.mocks.delayed_in_memory_tape_cassette import DelayedInMemoryTapeCassette
 from playback.utils.timing_utils import Timed
 
