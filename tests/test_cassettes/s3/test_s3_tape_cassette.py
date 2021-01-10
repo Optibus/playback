@@ -1,0 +1,214 @@
+import unittest
+import uuid
+from datetime import datetime, timedelta
+from mock import patch
+import boto3
+from moto import mock_s3
+from playback.exceptions import NoSuchRecording
+from playback.recording import Recording
+
+from playback.tape_cassettes.s3.s3_tape_cassette import S3TapeCassette
+
+TEST_BUCKET = 'test_bucket'
+
+
+@mock_s3
+class TestS3TapeCassette(unittest.TestCase):
+
+    def setUp(self):
+        conn = boto3.resource('s3', region_name='us-east-1')
+        # We need to create the bucket since this is all in Moto's 'virtual' AWS account
+        conn.create_bucket(Bucket=TEST_BUCKET)
+        self.cassette = S3TapeCassette(TEST_BUCKET, key_prefix='tests_' + uuid.uuid1().hex, transient=True,
+                                       read_only=False)
+
+    def tearDown(self):
+        self.cassette.close()
+
+    def test_create_save_and_fetch_empty_recording(self):
+        recording = self.cassette.create_new_recording('test_operation')
+        self.cassette.save_recording(recording)
+        fetched_recording = self.cassette.get_recording(recording.id)
+        self.assertEqual(recording.id, fetched_recording.id)
+
+    def test_create_save_and_fetch_recording_with_data(self):
+        recording = self.cassette.create_new_recording('test_operation')
+        recording.set_data('key1', 5)
+        recording.set_data('key2', {'obj_key1': 2, 'obj_key2': "bla"})
+        self.cassette.save_recording(recording)
+        fetched_recording = self.cassette.get_recording(recording.id)
+        self.assertEqual(recording.id, fetched_recording.id)
+
+        self.assertEqual(5, recording.get_data('key1'))
+        self.assertEqual(recording.get_data('key1'), fetched_recording.get_data('key1'))
+
+        self.assertEqual({'obj_key1': 2, 'obj_key2': "bla"}, recording.get_data('key2'))
+        self.assertEqual(recording.get_data('key2'), fetched_recording.get_data('key2'))
+
+        self.assertItemsEqual(['key1', 'key2'], recording.get_all_keys())
+        self.assertItemsEqual(recording.get_all_keys(), fetched_recording.get_all_keys())
+
+    def test_create_save_and_fetch_recording_with_metadata(self):
+        recording = self.cassette.create_new_recording('test_operation')
+        metadata = {'key1': 5, 'key2': {'obj_key1': 2, 'obj_key2': "bla"}}
+        recording.add_metadata(metadata)
+        self.cassette.save_recording(recording)
+        fetched_recording = self.cassette.get_recording(recording.id)
+        self.assertEqual(recording.id, fetched_recording.id)
+
+        self.assertEqual(metadata, recording.get_metadata())
+        self.assertEqual(recording.get_metadata(), fetched_recording.get_metadata())
+
+    def test_close_transient_true(self):
+        prefix = 'tests_' + uuid.uuid1().hex
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False) as new_cassette:
+            recording = new_cassette.create_new_recording('test_operation')
+            new_cassette.save_recording(recording)
+
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False) as new_cassette:
+            with self.assertRaises(NoSuchRecording):
+                new_cassette.get_recording(recording.id)
+
+    def test_close_transient_false(self):
+        prefix = 'tests_' + uuid.uuid1().hex
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=False, read_only=False) as new_cassette:
+            recording = new_cassette.create_new_recording('test_operation')
+            new_cassette.save_recording(recording)
+
+        # Closing this will clean up the garbage
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False) as new_cassette:
+            self.assertIsNotNone(new_cassette.get_recording(recording.id))
+
+    def test_read_only_cassette(self):
+        prefix = 'tests_' + uuid.uuid1().hex
+        try:
+            with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=False, read_only=False) as new_cassette:
+                recording = new_cassette.create_new_recording('test_operation')
+                new_cassette.save_recording(recording)
+
+            new_cassette = S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=True)
+            fetched_recording = new_cassette.get_recording(recording.id)
+            self.assertIsNotNone(fetched_recording)
+            with self.assertRaises(AssertionError):
+                new_cassette.create_new_recording("some_category")
+            with self.assertRaises(AssertionError):
+                new_cassette.save_recording(fetched_recording)
+            new_cassette.close()
+
+            # Check the close didn't delete the previous recording
+            new_cassette = S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=True)
+            self.assertIsNotNone(new_cassette.get_recording(recording.id))
+            new_cassette.close()
+
+        finally:
+            # Clean up the garbage
+            S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=False, read_only=False).close()
+
+    def test_fetch_recording_ids_by_category(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        self.assertItemsEqual([recording1.id, recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1')))
+        self.assertItemsEqual([recording3.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation2')))
+
+    def test_fetch_recording_ids_by_category_and_date(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        self.assertItemsEqual([recording1.id, recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    start_date=datetime.utcnow() - timedelta(hours=1))))
+        self.assertItemsEqual([],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    start_date=datetime.utcnow() + timedelta(hours=1))))
+
+        self.assertItemsEqual([recording1.id, recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    end_date=datetime.utcnow() + timedelta(hours=1))))
+        self.assertItemsEqual([],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    end_date=datetime.utcnow() - timedelta(hours=1))))
+
+        self.assertItemsEqual([recording1.id, recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    start_date=datetime.utcnow() - timedelta(hours=1),
+                                                                    end_date=datetime.utcnow() + timedelta(hours=1))))
+
+    def test_fetch_recording_ids_by_category_date_and_metadata(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': True})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': False})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        self.assertItemsEqual([recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    start_date=datetime.utcnow() - timedelta(hours=1),
+                                                                    end_date=datetime.utcnow() + timedelta(hours=1),
+                                                                    metadata={'property': False})))
+
+    def test_fetch_recording_ids_by_category_and_limit(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording3)
+
+        self.assertEquals(2, len(list(self.cassette.iter_recording_ids(category='test_operation1', limit=2))))
+
+    def test_big_recording_storage_type(self):
+        prefix = 'tests_' + uuid.uuid1().hex
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
+                            infrequent_access_kb_threshold=1) as new_cassette:
+            with patch.object(new_cassette._s3_facade, 'put_string', wraps=new_cassette._s3_facade.put_string) \
+                    as patched:
+                recording = new_cassette.create_new_recording('test_operation')
+                recording.set_data('some_data', range(10000))
+                new_cassette.save_recording(recording)
+                args, kwargs = patched.call_args_list[0]
+                self.assertEquals('STANDARD_IA', kwargs['StorageClass'])
+
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
+                            infrequent_access_kb_threshold=1) as new_cassette:
+            with patch.object(new_cassette._s3_facade, 'put_string',
+                              wraps=new_cassette._s3_facade.put_string) \
+                    as patched:
+                recording = new_cassette.create_new_recording('test_operation')
+                recording.set_data('some_data', range(10))
+                new_cassette.save_recording(recording)
+                args, kwargs = patched.call_args_list[0]
+                self.assertEquals('STANDARD', kwargs['StorageClass'])
+
+    def test_save_with_sampling_ratio(self):
+        prefix = 'tests_' + uuid.uuid1().hex
+
+        def sampling_calculator(category, size, r):
+            self.assertEquals(category, 'test_operation')
+            self.assertIsInstance(r, Recording)
+            return 1 if size < 500 else 0
+
+        with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
+                            sampling_calculator=sampling_calculator) as new_cassette:
+            recording = new_cassette.create_new_recording('test_operation')
+            new_cassette.save_recording(recording)
+            self.assertIsNotNone(new_cassette.get_recording(recording.id))
+
+            recording = new_cassette.create_new_recording('test_operation')
+            recording.set_data('key', range(1000))
+            new_cassette.save_recording(recording)
+            with self.assertRaises(NoSuchRecording):
+                new_cassette.get_recording(recording.id)
