@@ -4,7 +4,7 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
-  build-and-test:
+  build:
     docker:
       - image: circleci/python:2.7.18
     steps:
@@ -16,7 +16,52 @@ jobs:
       - run:
           command: nosetests tests
 
+  deploy:
+    docker:
+      - image: circleci/python:2.7.18
+    steps:
+      - checkout
+      - python/load-cache
+      - run:
+          command: sudo pip install -e .[dev]
+      - python/save-cache
+      - run:
+          command: |
+            sudo pip install twine
+      - run:
+          name: verify git tag vs. version
+          command: python setup.py verify
+      - run:
+          name: init .pypirc
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = eitany" >> ~/.pypirc
+            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
+      - run:
+          name: create packages
+          command: |
+            sudo python setup.py sdist
+            sudo python setup.py bdist_wheel
+      - run:
+          name: upload to pypi
+          command: |
+            twine upload dist/*
+
 workflows:
-  main:
+  # main:
+  #   jobs:s
+  #     - build-and-test
+  build_and_deploy:
     jobs:
-      - build-and-test
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - deploy:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
