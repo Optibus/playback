@@ -15,6 +15,7 @@ jobs:
       - python/save-cache
       - run:
           command: nosetests tests
+      - store_test_results
 
 workflows:
   main:
