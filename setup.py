@@ -4,7 +4,7 @@ VERSION = "0.0.1"
 
 
 setup(
-    name='playback',
+    name='playback2',
     version=VERSION,
     author="Optibus",
     packages=find_packages(),
