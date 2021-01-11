@@ -1,11 +1,31 @@
+import os
+import sys
 import setuptools
+from setuptools.command.install import install
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+VERSION = '0.0.1'
+
+
+class VerifyVersionCommand(install):
+    """Custom command to verify that the git tag matches our version"""
+    description = 'verify that the git tag matches our version'
+
+    def run(self):
+        tag = os.getenv('CIRCLE_TAG')
+
+        if tag != VERSION:
+            info = "Git tag: {0} does not match the version of this app: {1}".format(
+                tag, VERSION
+            )
+            sys.exit(info)
+
+
 setuptools.setup(
     name="playback-studio",
-    version="0.0.1",
+    version=VERSION,
     author="Optibus",
     author_email="eitan@optibus.com",
     description="Record your service operations in production and replay them locally at any time in a sandbox",
