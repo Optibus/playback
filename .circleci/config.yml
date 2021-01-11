@@ -4,7 +4,7 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
-  build:
+  build-and-test:
     docker:
       - image: circleci/python:2.7.18
     steps:
@@ -15,25 +15,10 @@ jobs:
       - run:
           command: sudo python setup.py develop
       - python/save-cache
-
-  test:
       - run:
           command: nosetests tests
-
-
-  build-and-test:
-    executor: python/default
-    steps:
-      - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
-      - run:
-          command: ./manage.py test
-          name: Test
 
 workflows:
   main:
     jobs:
-      - build
-      - test
+      - build-and-test
