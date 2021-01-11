@@ -22,14 +22,10 @@ jobs:
     steps:
       - run:
           command: |
-            sudo pip install venv
             sudo pip install twine
       - run:
           name: verify git tag vs. version
-          command: |
-            python -m venv venv
-            . venv/bin/activate
-            python setup.py verify
+          command: python setup.py verify
       - run:
           name: init .pypirc
           command: |
