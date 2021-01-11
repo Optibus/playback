@@ -1,6 +1,7 @@
 # pylint: disable=not-context-manager
 from __future__ import absolute_import
 from collections import namedtuple, Counter
+from copy import copy
 from random import Random
 
 from decorator import contextmanager
@@ -723,6 +724,12 @@ class TapeRecorder(object):
 
                 self.discard_recording()
                 return result
+
+            try:
+                recorded_result = copy(recorded_result)  # prevent changes in some fields of input to break recording.
+            except Exception as ex:
+                _logger.warning(u"recorded data couldn't be copied (type={} exception={})".format(
+                    type(recorded_result), repr(ex)))
 
             # Record result
             self._record_data(interception_key, {'value': recorded_result})
