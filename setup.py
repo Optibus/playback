@@ -19,7 +19,8 @@ setuptools.setup(
     ],
     extras_require={'dev': [
         'mock==2.0.0',
-        'moto==1.3.13'
+        'moto==1.3.13',
+        'nose==1.3.7',
     ]},
     classifiers=[
         "Programming Language :: Python :: 2.7",
