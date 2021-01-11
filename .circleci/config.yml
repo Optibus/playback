@@ -11,7 +11,7 @@ jobs:
       - checkout
       - python/load-cache
       - run:
-          command: python setup.py install
+          command: sudo python setup.py install
       - python/save-cache
 
 
