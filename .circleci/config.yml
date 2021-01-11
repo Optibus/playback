@@ -40,8 +40,8 @@ jobs:
       - run:
           name: create packages
           command: |
-            python setup.py sdist
-            python setup.py bdist_wheel
+            sudo python setup.py sdist
+            sudo python setup.py bdist_wheel
       - run:
           name: upload to pypi
           command: |
