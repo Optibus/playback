@@ -12,7 +12,13 @@ jobs:
       - python/load-cache
       - run:
           command: sudo python setup.py install
+      - run:
+          command: sudo python setup.py develop
       - python/save-cache
+
+  test:
+      - run:
+          command: nosetests tests
 
 
   build-and-test:
@@ -30,3 +36,4 @@ workflows:
   main:
     jobs:
       - build
+      - test
