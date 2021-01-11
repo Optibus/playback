@@ -21,6 +21,10 @@ jobs:
       - image: circleci/python:2.7.18
     steps:
       - run:
+          command: |
+            sudo pip install venv
+            sudo pip install twine
+      - run:
           name: verify git tag vs. version
           command: |
             python -m venv venv
