@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 from copy import copy
 from random import Random
 from zlib import compress, decompress
 import logging
 import uuid
+import sys
 from jsonpickle import encode, decode
 from parse import compile
 from fnmatch import fnmatch
@@ -116,7 +118,10 @@ class S3TapeCassette(TapeCassette):
         encoding_duration = timed.duration
 
         with Timed() as timed:
-            compressed_full = compress(encoded_full)
+            if sys.version_info.major == 3 and type(encoded_full) is str:
+                compressed_full = compress(bytes(encoded_full.encode('utf-8')))
+            else:
+                compressed_full = compress(encoded_full)
         compression_duration = timed.duration
 
         recording_size = len(compressed_full)
