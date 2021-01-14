@@ -5,6 +5,7 @@ import logging
 import uuid
 from jsonpickle import encode, decode
 from parse import compile
+from fnmatch import fnmatch
 
 from playback.exceptions import NoSuchRecording
 from playback.tape_cassette import TapeCassette
@@ -200,7 +201,14 @@ class S3TapeCassette(TapeCassette):
 
             def content_filter(recording_str):
                 recording_metadata = decode(recording_str)
-                return all(recording_metadata.get(k) == v for k, v in metadata.items())
+                for k, v in metadata.items():
+                    if isinstance(v, str):
+                        if not fnmatch(recording_metadata.get(k), v):
+                            return False
+                    elif recording_metadata.get(k) != v:
+                        return False
+
+                return True
 
         for key in self._s3_facade.iter_keys(
                 prefix=self.METADATA_KEY.format(key_prefix=self.key_prefix, id='{}/'.format(category)),

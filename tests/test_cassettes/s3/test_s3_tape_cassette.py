@@ -160,6 +160,24 @@ class TestS3TapeCassette(unittest.TestCase):
                                                                     end_date=datetime.utcnow() + timedelta(hours=1),
                                                                     metadata={'property': False})))
 
+    def test_fetch_recording_ids_with_wildcard_matching_metadata(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': 'val11'})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': 'val21'})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        self.assertItemsEqual([recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    metadata={'property': 'val2*'})))
+
+        self.assertItemsEqual([recording1.id, recording2.id],
+                              list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                    metadata={'property': 'val*'})))
+
     def test_fetch_recording_ids_by_category_and_limit(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording1)
