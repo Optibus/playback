@@ -1,10 +1,24 @@
+from __future__ import absolute_import
 import logging
 import os
+import base64
+import sys
 
 from playback.utils.timing_utils import Timed
 
 _logger = logging.getLogger(__name__)
 
+def encode_base64(content):
+    if sys.version_info.major == 2:
+        return content.encode('base64')
+    else:
+        return base64.b64encode(content)
+
+def decode_base64(content):
+    if sys.version_info.major == 2:
+        return content.decode('base64')
+    else:
+        return base64.b64decode(content)
 
 class FileInterception(object):
 
@@ -127,7 +141,7 @@ class FileInterception(object):
         """
         return {
             'file_path': file_path,
-            'file_content': content.encode('base64')
+            'file_content': encode_base64(content)
         }
 
     @staticmethod
@@ -142,6 +156,6 @@ class FileInterception(object):
         file_content = serialized_file['file_content']
 
         if file_content != FileInterception.ABOVE_LIMIT_CONTENT:
-            file_content = file_content.decode('base64')
+            file_content = decode_base64(file_content)
 
         return serialized_file['file_path'], file_content
