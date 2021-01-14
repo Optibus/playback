@@ -477,7 +477,7 @@ class TestTapeRecorder(unittest.TestCase):
         instance = Operation()
         with self.assertRaises(ValueError) as e:
             instance.execute()
-        self.assertEqual("Error", e.exception.message)
+        self.assertEqual("ValueError('Error',)", repr(e.exception))
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -485,7 +485,7 @@ class TestTapeRecorder(unittest.TestCase):
         operation_output = next(po for po in playback_result.playback_outputs
                                 if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
         self.assertEqual(ValueError, type(operation_output.value['args'][0]))
-        self.assertEqual('Error', operation_output.value['args'][0].message)
+        self.assertEqual("ValueError('Error',)", repr(operation_output.value['args'][0]))
         self.assertEqual(len(playback_result.recorded_outputs), len(playback_result.playback_outputs))
         self.assertGreater(playback_result.playback_duration, 0)
         self.assertGreater(playback_result.recorded_duration, 0)
@@ -503,7 +503,7 @@ class TestTapeRecorder(unittest.TestCase):
                 try:
                     self.get_value()
                 except Exception as ex:
-                    return ex.message
+                    return repr(ex)
 
             @self.tape_recorder.intercept_input('input')
             def get_value(self):
@@ -511,7 +511,7 @@ class TestTapeRecorder(unittest.TestCase):
 
         instance = Operation(5)
         result = instance.execute()
-        self.assertEqual(5, result)
+        self.assertEqual('Exception(5,)', result)
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -529,7 +529,7 @@ class TestTapeRecorder(unittest.TestCase):
                 try:
                     self.output()
                 except Exception as ex:
-                    return ex.message
+                    return repr(ex)
 
             @self.tape_recorder.intercept_output('output_function')
             def output(self):
@@ -537,7 +537,7 @@ class TestTapeRecorder(unittest.TestCase):
 
         instance = Operation(5)
         result = instance.execute()
-        self.assertEqual(5, result)
+        self.assertEqual("Exception(5,)", result)
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -563,7 +563,7 @@ class TestTapeRecorder(unittest.TestCase):
 
             call_ratio = float(intercepted.call_count)/calls
             print('Call ratio {}'.format(call_ratio))
-            self.assertAlmostEquals(0.1, call_ratio, places=1)
+            self.assertAlmostEqual(0.1, call_ratio, places=1)
 
     def test_operation_with_input_dict_as_key(self):
         class Operation(object):
@@ -797,7 +797,7 @@ class TestTapeRecorder(unittest.TestCase):
             expected_aborted = calls - intercepted_save.call_count
             call_ratio = float(intercepted_save.call_count) / calls
             print('Call ratio {}'.format(call_ratio))
-            self.assertAlmostEquals(0.1, call_ratio, places=1)
+            self.assertAlmostEqual(0.1, call_ratio, places=1)
             self.assertEqual(expected_aborted, intercepted_abort.call_count)
 
     def test_record_and_playback_basic_operation_data_interception_with_specific_arguments_ignored_as_key(self):

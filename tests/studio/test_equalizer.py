@@ -84,17 +84,17 @@ class TestEqualizer(unittest.TestCase):
 
             comparison = runner.run_comparison()
 
-        self.assertEquals(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
 
-        self.assertEquals(3, comparison[0].expected)
-        self.assertEquals(4, comparison[1].expected)
-        self.assertEquals(5, comparison[2].expected)
+        self.assertEqual(3, comparison[0].expected)
+        self.assertEqual(4, comparison[1].expected)
+        self.assertEqual(5, comparison[2].expected)
 
-        self.assertEquals(3, comparison[0].actual)
-        self.assertEquals(100, comparison[1].actual)
-        self.assertEquals(5, comparison[2].actual)
+        self.assertEqual(3, comparison[0].actual)
+        self.assertEqual(100, comparison[1].actual)
+        self.assertEqual(5, comparison[2].actual)
 
         mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata=None)
         self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
@@ -152,19 +152,19 @@ class TestEqualizer(unittest.TestCase):
 
                 comparison = runner.run_comparison()
 
-            self.assertEquals(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-            self.assertEquals(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-            self.assertEquals(EqualityStatus.Different, comparison[2].comparator_status.equality_status)
+            self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+            self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+            self.assertEqual(EqualityStatus.Different, comparison[2].comparator_status.equality_status)
 
-            self.assertEquals(3, comparison[0].expected)
-            self.assertEquals(4, comparison[1].expected)
+            self.assertEqual(3, comparison[0].expected)
+            self.assertEqual(4, comparison[1].expected)
             self.assertIsInstance(comparison[2].expected, Exception)
             self.assertTrue(comparison[1].actual_is_exception)
             self.assertFalse(comparison[1].expected_is_exception)
 
-            self.assertEquals(3, comparison[0].actual)
+            self.assertEqual(3, comparison[0].actual)
             self.assertIsInstance(comparison[1].actual, Exception)
-            self.assertEquals(5, comparison[2].actual)
+            self.assertEqual(5, comparison[2].actual)
             self.assertFalse(comparison[2].actual_is_exception)
             self.assertTrue(comparison[2].expected_is_exception)
 
@@ -208,13 +208,13 @@ class TestEqualizer(unittest.TestCase):
 
             comparison = runner.run_comparison()
 
-        self.assertEquals(1, len(comparison))
-        self.assertEquals(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(1, len(comparison))
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
 
         mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=None,
                                 limit=1, metadata={'meta': 'b'})
-        self.assertEquals(4, comparison[0].expected)
-        self.assertEquals(4, comparison[0].actual)
+        self.assertEqual(4, comparison[0].expected)
+        self.assertEqual(4, comparison[0].actual)
 
     def test_equal_comparison_with_message(self):
 
@@ -266,13 +266,13 @@ class TestEqualizer(unittest.TestCase):
 
             comparison = runner.run_comparison()
 
-        self.assertEquals(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
 
-        self.assertEquals(EqualityStatus.Equal.name, comparison[0].comparator_status.message)
-        self.assertEquals(EqualityStatus.Different.name, comparison[1].comparator_status.message)
-        self.assertEquals(EqualityStatus.Equal.name, comparison[2].comparator_status.message)
+        self.assertEqual(EqualityStatus.Equal.name, comparison[0].comparator_status.message)
+        self.assertEqual(EqualityStatus.Different.name, comparison[1].comparator_status.message)
+        self.assertEqual(EqualityStatus.Equal.name, comparison[2].comparator_status.message)
 
     def test_equal_comparison_comparator_data_extraction(self):
 
@@ -341,13 +341,13 @@ class TestEqualizer(unittest.TestCase):
 
             comparison = runner.run_comparison()
 
-        self.assertEquals(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Equal, comparison[1].comparator_status.equality_status)
-        self.assertEquals(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
 
-        self.assertEquals('1', comparison[0].comparator_status.message)
-        self.assertEquals('1', comparison[1].comparator_status.message)
-        self.assertEquals('1', comparison[2].comparator_status.message)
+        self.assertEqual('1', comparison[0].comparator_status.message)
+        self.assertEqual('1', comparison[1].comparator_status.message)
+        self.assertEqual('1', comparison[2].comparator_status.message)
 
     def test_random_sample(self):
 
@@ -444,6 +444,6 @@ class TestEqualizer(unittest.TestCase):
 
         comparison = runner.run_comparison()
 
-        self.assertEquals(id1, comparison[0].playback.original_recording.id)
-        self.assertEquals(id2, comparison[1].playback.original_recording.id)
-        self.assertEquals(2, len(comparison))
+        self.assertEqual(id1, comparison[0].playback.original_recording.id)
+        self.assertEqual(id2, comparison[1].playback.original_recording.id)
+        self.assertEqual(2, len(comparison))
