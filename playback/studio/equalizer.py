@@ -6,7 +6,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-EqualityStatus = Enum('EqualityStatus', 'Equal Fixed Different Fail')
+EqualityStatus = Enum('EqualityStatus', 'Equal Fixed Different Failed')
 
 
 class ComparatorResult(object):
@@ -138,9 +138,9 @@ class Equalizer(object):
         :return: Representation of comparison statistics
         :rtype: str
         """
-        return u'comparison stats: (equal - {}, fixed - {}, diff - {}, fail - {}) playback failures - {}'.format(
+        return u'comparison stats: (equal - {}, fixed - {}, diff - {}, failed - {}) playback failures - {}'.format(
             counter[EqualityStatus.Equal],
             counter[EqualityStatus.Fixed],
             counter[EqualityStatus.Different],
-            counter[EqualityStatus.Fail],
+            counter[EqualityStatus.Failed],
             playback_failures)

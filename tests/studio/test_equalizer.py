@@ -21,7 +21,7 @@ def exact_comparator(recorded_result, playback_result):
         return EqualityStatus.Equal
     if diff <= 10:
         return EqualityStatus.Different
-    return EqualityStatus.Fail
+    return EqualityStatus.Failed
 
 
 def exact_comparator_with_message(recorded_result, playback_result):
@@ -93,7 +93,7 @@ class TestEqualizer(unittest.TestCase):
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEqual(EqualityStatus.Fail, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
 
         self.assertEqual(3, comparison[0].expected)
         self.assertEqual(4, comparison[1].expected)
@@ -275,11 +275,11 @@ class TestEqualizer(unittest.TestCase):
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEqual(EqualityStatus.Fail, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
 
         self.assertEqual(EqualityStatus.Equal.name, comparison[0].comparator_status.message)
         self.assertEqual(EqualityStatus.Different.name, comparison[1].comparator_status.message)
-        self.assertEqual(EqualityStatus.Fail.name, comparison[2].comparator_status.message)
+        self.assertEqual(EqualityStatus.Failed.name, comparison[2].comparator_status.message)
 
     def test_equal_comparison_comparator_data_extraction(self):
 
