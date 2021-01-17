@@ -1,10 +1,12 @@
+from collections import Counter
+
 from enum import Enum
 import logging
 
 _logger = logging.getLogger(__name__)
 
 
-EqualityStatus = Enum('EqualityStatus', 'Equal Different')
+EqualityStatus = Enum('EqualityStatus', 'Equal Fixed Different Fail')
 
 
 class ComparatorResult(object):
@@ -83,9 +85,8 @@ class Equalizer(object):
         :rtype: list of Comparison
         """
         comparisons = []
-        equal = 0
-        diff = 0
-        failure = 0
+        counter = Counter()
+        playback_failure = 0
         iteration = 0
         for iteration, playable_recording in enumerate(self.playable_recordings, start=1):
             try:
@@ -111,20 +112,35 @@ class Equalizer(object):
 
                 _logger.info(u'Recording {} Comparison result: {}'.format(playable_recording.recording_id, comparison))
 
-                if comparison.comparator_status.equality_status is EqualityStatus.Equal:
-                    equal += 1
-                else:
-                    diff += 1
+                counter[comparison.comparator_status.equality_status] += 1
 
                 if iteration % 10 == 0:
-                    _logger.info(u'Iteration {} stats: equal - {}, different - {}, failure - {}'.format(
-                        iteration, equal, diff, failure))
+                    _logger.info(u'Iteration {} {}'.format(
+                        iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
 
                 comparisons.append(comparison)
             except Exception as ex:
-                failure += 1
+                playback_failure += 1
                 _logger.info(u'Failed playing recording id {} - {}'.format(playable_recording.recording_id, ex))
 
-        _logger.info(u'Completed all {} iterations, stats: equal - {}, different - {}, failure - {}'.format(
-            iteration, equal, diff, failure))
+        _logger.info(u'Completed all {} iterations, {}'.format(
+            iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
+
         return comparisons
+
+    @staticmethod
+    def _comparison_stats_repr(counter, playback_failures):
+        """
+        :param counter:
+        :type counter: collections.Counter
+        :param playback_failures: 
+        :type playback_failures: int
+        :return: Representation of comparison statistics
+        :rtype: str
+        """
+        return u'comparison stats: (equal - {}, fixed - {}, diff - {}, fail - {}) playback failures - {}'.format(
+            counter[EqualityStatus.Equal],
+            counter[EqualityStatus.Fixed],
+            counter[EqualityStatus.Different],
+            counter[EqualityStatus.Fail],
+            playback_failures)

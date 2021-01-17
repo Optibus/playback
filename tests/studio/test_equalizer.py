@@ -14,7 +14,14 @@ from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTa
 
 
 def exact_comparator(recorded_result, playback_result):
-    return EqualityStatus.Equal if recorded_result == playback_result else EqualityStatus.Different
+    if type(recorded_result) != type(playback_result):
+        return EqualityStatus.Different
+    diff = abs(recorded_result - playback_result)
+    if diff == 0:
+        return EqualityStatus.Equal
+    if diff <= 10:
+        return EqualityStatus.Different
+    return EqualityStatus.Fail
 
 
 def exact_comparator_with_message(recorded_result, playback_result):
@@ -39,9 +46,9 @@ class TestEqualizer(unittest.TestCase):
     def test_equal_comparison(self):
 
         class Operation(object):
-            def __init__(self, value=None, override_input=None):
+            def __init__(self, value=None, multiply_input=1):
                 self._value = value
-                self.override_input = override_input
+                self.multiply_input = multiply_input
 
             @property
             @self.tape_recorder.intercept_input('input')
@@ -50,9 +57,7 @@ class TestEqualizer(unittest.TestCase):
 
             @self.tape_recorder.operation()
             def execute(self):
-                if self.override_input:
-                    return self.override_input
-                return self.input
+                return self.input * self.multiply_input
 
         Operation(3).execute()
         Operation(4).execute()
@@ -63,7 +68,9 @@ class TestEqualizer(unittest.TestCase):
         def playback_function(recording):
             playback_counter[0] += 1
             if playback_counter[0] == 2:
-                operation = Operation(override_input=100)
+                operation = Operation(multiply_input=2)
+            elif playback_counter[0] == 3:
+                operation = Operation(multiply_input=100)
             else:
                 operation = Operation()
             return operation.execute()
@@ -86,15 +93,15 @@ class TestEqualizer(unittest.TestCase):
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEqual(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Fail, comparison[2].comparator_status.equality_status)
 
         self.assertEqual(3, comparison[0].expected)
         self.assertEqual(4, comparison[1].expected)
         self.assertEqual(5, comparison[2].expected)
 
         self.assertEqual(3, comparison[0].actual)
-        self.assertEqual(100, comparison[1].actual)
-        self.assertEqual(5, comparison[2].actual)
+        self.assertEqual(8, comparison[1].actual)
+        self.assertEqual(500, comparison[2].actual)
 
         mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata=None)
         self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
@@ -219,9 +226,9 @@ class TestEqualizer(unittest.TestCase):
     def test_equal_comparison_with_message(self):
 
         class Operation(object):
-            def __init__(self, value=None, override_input=None):
+            def __init__(self, value=None, multiply_input=1):
                 self._value = value
-                self.override_input = override_input
+                self.multiply_input = multiply_input
 
             @property
             @self.tape_recorder.intercept_input('input')
@@ -230,9 +237,7 @@ class TestEqualizer(unittest.TestCase):
 
             @self.tape_recorder.operation()
             def execute(self):
-                if self.override_input:
-                    return self.override_input
-                return self.input
+                return self.input * self.multiply_input
 
         Operation(3).execute()
         Operation(4).execute()
@@ -243,7 +248,9 @@ class TestEqualizer(unittest.TestCase):
         def playback_function(recording):
             playback_counter[0] += 1
             if playback_counter[0] == 2:
-                operation = Operation(override_input=100)
+                operation = Operation(multiply_input=2)
+            elif playback_counter[0] == 3:
+                operation = Operation(multiply_input=100)
             else:
                 operation = Operation()
             return operation.execute()
@@ -268,11 +275,11 @@ class TestEqualizer(unittest.TestCase):
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-        self.assertEqual(EqualityStatus.Equal, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Fail, comparison[2].comparator_status.equality_status)
 
         self.assertEqual(EqualityStatus.Equal.name, comparison[0].comparator_status.message)
         self.assertEqual(EqualityStatus.Different.name, comparison[1].comparator_status.message)
-        self.assertEqual(EqualityStatus.Equal.name, comparison[2].comparator_status.message)
+        self.assertEqual(EqualityStatus.Fail.name, comparison[2].comparator_status.message)
 
     def test_equal_comparison_comparator_data_extraction(self):
 
