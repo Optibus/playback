@@ -88,43 +88,50 @@ class Equalizer(object):
         counter = Counter()
         playback_failure = 0
         iteration = 0
-        for iteration, playable_recording in enumerate(self.playable_recordings, start=1):
-            try:
-                playback = playable_recording.play()
-                recorded_result = self.result_extractor(playback.recorded_outputs)
-                playback_result = self.result_extractor(playback.playback_outputs)
+        completed = False
+        try:
+            for iteration, playable_recording in enumerate(self.playable_recordings, start=1):
+                try:
+                    playback = playable_recording.play()
+                    recorded_result = self.result_extractor(playback.recorded_outputs)
+                    playback_result = self.result_extractor(playback.playback_outputs)
 
-                comparison_data = {} if self.comparison_data_extractor is None else \
-                    self.comparison_data_extractor(playback.original_recording)
+                    comparison_data = {} if self.comparison_data_extractor is None else \
+                        self.comparison_data_extractor(playback.original_recording)
 
-                comparator_result = self.comparator(recorded_result, playback_result, **comparison_data)
-                if not isinstance(comparator_result, ComparatorResult):
-                    comparator_result = ComparatorResult(comparator_result)
+                    comparator_result = self.comparator(recorded_result, playback_result, **comparison_data)
+                    if not isinstance(comparator_result, ComparatorResult):
+                        comparator_result = ComparatorResult(comparator_result)
 
-                comparison = Comparison(
-                    comparator_result,
-                    recorded_result,
-                    playback_result,
-                    expected_is_exception=isinstance(recorded_result, Exception),
-                    actual_is_exception=isinstance(playback_result, Exception),
-                    playback=playback
-                )
+                    comparison = Comparison(
+                        comparator_result,
+                        recorded_result,
+                        playback_result,
+                        expected_is_exception=isinstance(recorded_result, Exception),
+                        actual_is_exception=isinstance(playback_result, Exception),
+                        playback=playback
+                    )
 
-                _logger.info(u'Recording {} Comparison result: {}'.format(playable_recording.recording_id, comparison))
+                    _logger.info(u'Recording {} Comparison result: {}'.format(playable_recording.recording_id,
+                                                                              comparison))
 
-                counter[comparison.comparator_status.equality_status] += 1
+                    counter[comparison.comparator_status.equality_status] += 1
 
-                if iteration % 10 == 0:
-                    _logger.info(u'Iteration {} {}'.format(
-                        iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
+                    if iteration % 10 == 0:
+                        _logger.info(u'Iteration {} {}'.format(
+                            iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
 
-                comparisons.append(comparison)
-            except Exception as ex:
-                playback_failure += 1
-                _logger.info(u'Failed playing recording id {} - {}'.format(playable_recording.recording_id, ex))
+                    comparisons.append(comparison)
+                except Exception as ex:
+                    playback_failure += 1
+                    _logger.info(u'Failed playing recording id {} - {}'.format(playable_recording.recording_id, ex))
 
-        _logger.info(u'Completed all {} iterations, {}'.format(
-            iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
+            completed = True
+
+        finally:
+            log_prefix = u'Completed all' if completed else u'Error during playback, executed'
+            _logger.info(u'{} {} iterations, {}'.format(
+                log_prefix, iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
 
         return comparisons
 
