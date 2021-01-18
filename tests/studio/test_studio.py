@@ -18,6 +18,12 @@ class TestPlaybackStudio(unittest.TestCase):
         self.tape_cassette.close()
 
     def test_run_two_categories(self):
+        self._test_run_two_operations(use_recording_ids=False)
+
+    def test_run_specific_recording_ids(self):
+        self._test_run_two_operations(use_recording_ids=True)
+
+    def _test_run_two_operations(self, use_recording_ids):
         class A(object):
 
             @self.tape_recorder.operation()
@@ -34,7 +40,12 @@ class TestPlaybackStudio(unittest.TestCase):
         A().execute()
         B().execute()
 
-        categories = ['A', 'B']
+        if not use_recording_ids:
+            categories = ['A', 'B']
+            recording_ids = None
+        else:
+            categories = None
+            recording_ids = self.tape_cassette.get_all_recording_ids()
 
         class MockEqualizerTuner(EqualizerTuner):
 
@@ -63,19 +74,19 @@ class TestPlaybackStudio(unittest.TestCase):
         equalizer_tuner = MockEqualizerTuner()
         start_date = 'a'
         studio = PlaybackStudio(categories, equalizer_tuner, self.tape_recorder,
-                                lookup_properties=RecordingLookupProperties(start_date))
+                                lookup_properties=RecordingLookupProperties(start_date), recording_ids=recording_ids)
         result = studio.play()
 
         a_results = result['A']
         b_results = result['B']
 
-        self.assertEqual(2, len(a_results))
+        self.assertEquals(2, len(a_results))
         self.assertTrue(all('AAA' == result.actual for result in a_results))
         self.assertTrue(all('AAA' == result.expected for result in a_results))
         self.assertTrue(all(EqualityStatus.Equal == result.comparator_status.equality_status for result in a_results))
         self.assertTrue(all('A' == result.comparator_status.message for result in a_results))
 
-        self.assertEqual(1, len(b_results))
+        self.assertEquals(1, len(b_results))
         self.assertTrue(all('BBB' == result.actual for result in b_results))
         self.assertTrue(all('BBB' == result.expected for result in b_results))
         self.assertTrue(all(EqualityStatus.Equal == result.comparator_status.equality_status for result in b_results))
