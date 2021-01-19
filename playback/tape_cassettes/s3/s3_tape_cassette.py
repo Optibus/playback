@@ -207,10 +207,13 @@ class S3TapeCassette(TapeCassette):
             def content_filter(recording_str):
                 recording_metadata = decode(recording_str)
                 for k, v in metadata.items():
-                    if isinstance(v, str):
-                        if not fnmatch(recording_metadata.get(k), v):
+                    recorded_value = recording_metadata.get(k)
+                    if recorded_value is None and v is not None:
+                        return False
+                    elif isinstance(v, str):
+                        if not fnmatch(recorded_value, v):
                             return False
-                    elif recording_metadata.get(k) != v:
+                    elif recorded_value != v:
                         return False
 
                 return True
