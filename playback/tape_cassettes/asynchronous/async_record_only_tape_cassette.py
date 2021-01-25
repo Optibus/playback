@@ -56,13 +56,13 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         _logger.info("AsyncTapeCassette has shutdown")
 
     def get_recording(self, recording_id):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def iter_recording_ids(self, category, start_date=None, end_date=None):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def extract_recording_category(self, recording_id):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def create_new_recording(self, category):
         """
