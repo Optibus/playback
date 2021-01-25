@@ -67,7 +67,7 @@ class TapeCassette(object):
         """
         Creates an iterator of keys matching the given parameters
         :param category: Recordings category
-        :type category: basestring
+        :type category: str
         :param start_date: Optional recording start date (need to be given in utc time)
         :type start_date: datetime.datetime
         :param end_date: Optional recording end date (need to be given in utc time)
@@ -77,7 +77,17 @@ class TapeCassette(object):
         :param limit: Optional limit on number of ids to fetch
         :type limit: int
         :return: Iterator of keys matching the given parameters
-        :rtype: collections.Iterator[basestring]
+        :rtype: collections.Iterator[str]
+        """
+        pass
+
+    @abstractmethod
+    def extract_recording_category(self, recording_id):
+        """
+        :param recording_id: Recording id to extract category from
+        :type recording_id: str
+        :return: Recording's category
+        :rtype: str
         """
         pass
 

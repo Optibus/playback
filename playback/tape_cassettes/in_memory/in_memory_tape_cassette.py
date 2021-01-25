@@ -1,3 +1,5 @@
+import uuid
+
 from jsonpickle import encode, decode
 from collections import OrderedDict
 from playback.recordings.memory.memory_recording import MemoryRecording
@@ -19,7 +21,7 @@ class InMemoryTapeCassette(TapeCassette):
         :return: Creates a new recording object
         :rtype: playback.recording.Recording
         """
-        recording = MemoryRecording()
+        recording = MemoryRecording(u'{}/{}'.format(category, uuid.uuid1().hex))
         recording._category = category
         return recording
 
@@ -67,9 +69,25 @@ class InMemoryTapeCassette(TapeCassette):
 
         return iter(result)
 
+    def extract_recording_category(self, recording_id):
+        """
+        :param recording_id: Recording id to extract category from
+        :type recording_id: str
+        :return: Recording's category
+        :rtype: str
+        """
+        return recording_id.split('/')[0]
+
     def get_last_recording_id(self):
         """
         :return: Last recording id
-        :rtype: basestring
+        :rtype: str
         """
         return self._last_id
+
+    def get_all_recording_ids(self):
+        """
+        :return: All recording ids
+        :rtype: list of str
+        """
+        return sorted(self._recordings.keys())

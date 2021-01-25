@@ -175,9 +175,7 @@ class S3TapeCassette(TapeCassette):
         if self.sampling_calculator is None:
             return True
 
-        result = self._recording_id_parser.parse(recording.id)
-        assert result is not None, 'Unrecognized key used'
-        category = result.named['category']
+        category = self.extract_recording_category(recording.id)
 
         ratio = self.sampling_calculator(category, recording_size, recording)
         if ratio >= 1:
@@ -230,6 +228,17 @@ class S3TapeCassette(TapeCassette):
             recording_id = result.named['id']
             _logger.info(u'Found filtered recording id {}'.format(recording_id))
             yield recording_id
+
+    def extract_recording_category(self, recording_id):
+        """
+        :param recording_id: Recording id to extract category from
+        :type recording_id: str
+        :return: Recording's category
+        :rtype: str
+        """
+        result = self._recording_id_parser.parse(recording_id)
+        assert result is not None, 'Unrecognized key used'
+        return result.named['category']
 
     def close(self):
         """
