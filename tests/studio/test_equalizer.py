@@ -89,7 +89,7 @@ class TestEqualizer(unittest.TestCase):
                                result_extractor=return_value_result_extractor,
                                comparator=exact_comparator)
 
-            comparison = runner.run_comparison()
+            comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
@@ -157,7 +157,7 @@ class TestEqualizer(unittest.TestCase):
                                    result_extractor=return_value_result_extractor,
                                    comparator=exact_comparator)
 
-                comparison = runner.run_comparison()
+                comparison = list(runner.run_comparison())
 
             self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
             self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
@@ -213,7 +213,7 @@ class TestEqualizer(unittest.TestCase):
                                result_extractor=return_value_result_extractor,
                                comparator=exact_comparator)
 
-            comparison = runner.run_comparison()
+            comparison = list(runner.run_comparison())
 
         self.assertEqual(1, len(comparison))
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
@@ -271,7 +271,7 @@ class TestEqualizer(unittest.TestCase):
                                result_extractor=return_value_result_extractor,
                                comparator=exact_comparator_with_message)
 
-            comparison = runner.run_comparison()
+            comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
@@ -346,7 +346,7 @@ class TestEqualizer(unittest.TestCase):
                                comparator=exact_comparator_with_multiplier,
                                comparison_data_extractor=comparison_data_extractor)
 
-            comparison = runner.run_comparison()
+            comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Equal, comparison[1].comparator_status.equality_status)
@@ -449,7 +449,7 @@ class TestEqualizer(unittest.TestCase):
                            result_extractor=return_value_result_extractor,
                            comparator=exact_comparator)
 
-        comparison = runner.run_comparison()
+        comparison = list(runner.run_comparison())
 
         self.assertEqual(id1, comparison[0].playback.original_recording.id)
         self.assertEqual(id2, comparison[1].playback.original_recording.id)
