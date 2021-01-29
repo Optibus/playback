@@ -18,15 +18,16 @@ class PlaybackStudio(object):
 
     def __init__(self, categories, equalizer_tuner, tape_recorder, lookup_properties=None, recording_ids=None):
         """
-        :param categories: Categories to play
+        :param categories: Categories (operations) to conduct comparison for
         :type categories: list of str
         :param recording_ids: List of specific recording ids to play, when given categories are ignored
         :type recording_ids: list of str
-        :param equalizer_tuner: Given a recording return a corresponding tuning
+        :param equalizer_tuner: Given a category return a corresponding equalizer tuning to be used for playback and
+        comparison
         :type equalizer_tuner: playback.studio.equalizer_tuning.EqualizerTuner
         :param lookup_properties: Lookup properties to use for all recordings
         :type lookup_properties: RecordingLookupProperties
-        :param tape_recorder: Tape recorder used to play recordings
+        :param tape_recorder: The tape recorder that will be used to play the recordings
         :type tape_recorder: playback.tape_recorder.TapeRecorder
         """
         self.categories = categories

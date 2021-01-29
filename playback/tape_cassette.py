@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 class TapeCassette(object):
     """
-    Acts as a storage driver for TapeRecorder to store and fetch the recordings
+    An abstract class that acts as a storage driver for TapeRecorder to store and fetch recordings
     """
 
     __metaclass__ = ABCMeta
@@ -29,6 +29,7 @@ class TapeCassette(object):
     @abstractmethod
     def create_new_recording(self, category):
         """
+        Creates a new recording object
         :param category: A category to classify the recording in (e.g operation class) (serializable)
         :type category: Any
         :return: Creates a new recording object
@@ -66,7 +67,7 @@ class TapeCassette(object):
     @abstractmethod
     def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
         """
-        Creates an iterator of keys matching the given parameters
+        Creates an iterator of recording ids matching the given search parameters
         :param category: Recordings category
         :type category: str
         :param start_date: Optional recording start date (need to be given in utc time)
@@ -77,7 +78,7 @@ class TapeCassette(object):
         :type metadata: dict
         :param limit: Optional limit on number of ids to fetch
         :type limit: int
-        :return: Iterator of keys matching the given parameters
+        :return: Iterator of recording ids matching the given parameters
         :rtype: collections.Iterator[str]
         """
         pass
