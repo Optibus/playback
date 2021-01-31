@@ -36,11 +36,14 @@ setuptools.setup(
     install_requires=[
         'parse==1.6.6',
         'jsonpickle==0.9.3',
+        'six==1.15.0',
+        'contextlib2==0.6.0'
+
     ],
     extras_require={'dev': [
         'mock==2.0.0',
         'moto==1.3.13',
-        'nose==1.3.7',
+        'pytest==4.6.9',
     ]},
     classifiers=[
         "Programming Language :: Python :: 2.7",
