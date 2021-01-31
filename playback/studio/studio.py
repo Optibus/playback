@@ -38,7 +38,7 @@ class PlaybackStudio(object):
         """
         Fetch and play recording of all categories and run comparison on each one
         :return: Comparison per category of all playbacks
-        :rtype: dict[basestring, (list of playback.studio.equalizer.Comparison) or Exception]
+        :rtype: dict[(str, collections.Iterator[(playback.studio.equalizer.Comparison or Exception)]]
         """
         if self.recording_ids:
             categories_recordings = self._group_recording_ids_by_categories()

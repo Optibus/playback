@@ -77,8 +77,8 @@ class TestPlaybackStudio(unittest.TestCase):
                                 lookup_properties=RecordingLookupProperties(start_date), recording_ids=recording_ids)
         result = studio.play()
 
-        a_results = result['A']
-        b_results = result['B']
+        a_results = list(result['A'])
+        b_results = list(result['B'])
 
         self.assertEquals(2, len(a_results))
         self.assertTrue(all('AAA' == result.actual for result in a_results))

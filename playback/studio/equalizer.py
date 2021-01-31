@@ -82,9 +82,8 @@ class Equalizer(object):
         """
         Runs a comparison between recorded results and their corresponding playbacks
         :return: Comparison result
-        :rtype: list of Comparison
+        :rtype: collections.Iterator[Comparison]
         """
-        comparisons = []
         counter = Counter()
         playback_failure = 0
         iteration = 0
@@ -121,7 +120,7 @@ class Equalizer(object):
                         _logger.info(u'Iteration {} {}'.format(
                             iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
 
-                    comparisons.append(comparison)
+                    yield comparison
                 except Exception as ex:
                     playback_failure += 1
                     _logger.info(u'Failed playing recording id {} - {}'.format(playable_recording.recording_id, ex))
@@ -132,8 +131,6 @@ class Equalizer(object):
             log_prefix = u'Completed all' if completed else u'Error during playback, executed'
             _logger.info(u'{} {} iterations, {}'.format(
                 log_prefix, iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
-
-        return comparisons
 
     @staticmethod
     def _comparison_stats_repr(counter, playback_failures):
