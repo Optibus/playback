@@ -1,22 +1,25 @@
 # pylint: disable=not-context-manager
+# pylint: disable=broad-except
 from __future__ import absolute_import
 from collections import namedtuple, Counter
+import logging
 from copy import copy
 from random import Random
-
-from decorator import contextmanager
+from datetime import datetime
+from time import time
 from jsonpickle import encode
+from decorator import contextmanager
+
 from playback.exceptions import InputInterceptionKeyCreationError, OperationExceptionDuringPlayback, \
     TapeRecorderException, RecordingKeyError
-from time import time
-from datetime import datetime
-import logging
+
+
+
 
 _logger = logging.getLogger(__name__)
 
 
 class TapeRecorder(object):
-
     DURATION = '_tape_recorder_recording_duration'
     RECORDED_AT = '_tape_recorder_recorded_at'
     OPERATION_OUTPUT_ALIAS = '_tape_recorder_operation'
@@ -71,31 +74,29 @@ class TapeRecorder(object):
             raise
         finally:
             # Recording was discarded
-            if self._active_recording is None:
-                return
+            if self._active_recording is not None:
+                recording = self._active_recording
+                force_sample = self.is_recording_sample_forced
+                recording_parameters = self._active_recording_parameters
 
-            recording = self._active_recording
-            force_sample = self.is_recording_sample_forced
-            recording_parameters = self._active_recording_parameters
+                # Clear recording not to leave recording in active state if we have
+                # some exception raised in following code
+                self._reset_active_recording()
 
-            # Clear recording not to leave recording in active state if we have some exception raised in following code
-            self._reset_active_recording()
+                if not self._should_sample_active_recording(recording, recording_parameters, force_sample):
+                    self.tape_cassette.abort_recording(recording)
+                else:
+                    duration = time() - start_time
 
-            if not self._should_sample_active_recording(recording, recording_parameters, force_sample):
-                self.tape_cassette.abort_recording(recording)
-                return
+                    self._add_post_operation_metadata(recording, metadata, post_operation_metadata_extractor, duration)
 
-            duration = time() - start_time
-
-            self._add_post_operation_metadata(recording, metadata, post_operation_metadata_extractor, duration)
-
-            try:
-                self.tape_cassette.save_recording(recording)
-                _logger.info(u'Finished recording of category {} with id {}, recording duration {:.2f}'.format(
-                    category, recording.id, duration))
-            except Exception:
-                _logger.exception(u'Failed saving recording of category {} with id {}'.format(
-                    category, recording.id))
+                    try:
+                        self.tape_cassette.save_recording(recording)
+                        _logger.info(u'Finished recording of category {} with id {}, recording duration {:.2f}'.format(
+                            category, recording.id, duration))
+                    except Exception:
+                        _logger.exception(u'Failed saving recording of category {} with id {}'.format(
+                            category, recording.id))
 
     def discard_recording(self):
         """
@@ -567,7 +568,7 @@ class TapeRecorder(object):
                     except RecordingKeyError:
                         if fail_on_no_recorded_result:
                             raise
-                        return
+                        return None
 
                 # Record the output result so it can be returned in playback mode
                 return self._execute_func_and_record_interception(func, interception_key, args, kwargs)

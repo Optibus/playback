@@ -82,13 +82,13 @@ class TestPlaybackStudio(unittest.TestCase):
         a_results = list(result['A'])
         b_results = list(result['B'])
 
-        self.assertEquals(2, len(a_results))
+        self.assertEqual(2, len(a_results))
         self.assertTrue(all('AAA' == result.actual for result in a_results))
         self.assertTrue(all('AAA' == result.expected for result in a_results))
         self.assertTrue(all(EqualityStatus.Equal == result.comparator_status.equality_status for result in a_results))
         self.assertTrue(all('A' == result.comparator_status.message for result in a_results))
 
-        self.assertEquals(1, len(b_results))
+        self.assertEqual(1, len(b_results))
         self.assertTrue(all('BBB' == result.actual for result in b_results))
         self.assertTrue(all('BBB' == result.expected for result in b_results))
         self.assertTrue(all(EqualityStatus.Equal == result.comparator_status.equality_status for result in b_results))

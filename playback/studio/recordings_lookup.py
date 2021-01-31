@@ -1,6 +1,25 @@
 from random import shuffle
 
 
+def play_recording(playback_function, tape_recorder, recording_id):
+    """
+    :type playback_function:
+    :param playback_function:
+
+    :type tape_recorder: TapeRecorder
+    :param tape_recorder:
+
+    :type recording_id: string
+    :param recording_id:
+
+    :rtype: function
+    """
+
+    def play():
+        return tape_recorder.play(recording_id, playback_function)
+
+    return play
+
 class RecordingLookupProperties(object):
     def __init__(self, start_date, end_date=None, metadata=None, limit=None, random_sample=False):
         """
@@ -46,11 +65,7 @@ def find_matching_playable_recordings(tape_recorder, playback_function, category
         recordings = iter(recordings[:lookup_properties.limit])
 
     for recording_id in recordings:
-
-        def play():
-            return tape_recorder.play(recording_id, playback_function)
-
-        yield PlayableRecording(recording_id, play)
+        yield PlayableRecording(recording_id, play_recording(playback_function, tape_recorder, recording_id))
 
 
 def by_id_playable_recordings(tape_recorder, playback_function, recording_ids):
@@ -65,11 +80,7 @@ def by_id_playable_recordings(tape_recorder, playback_function, recording_ids):
     :rtype: collections.Iterator[PlayableRecording]
     """
     for recording_id in recording_ids:
-
-        def play():
-            return tape_recorder.play(recording_id, playback_function)
-
-        yield PlayableRecording(recording_id, play)
+        yield PlayableRecording(recording_id, play_recording(playback_function, tape_recorder, recording_id))
 
 
 class PlayableRecording(object):

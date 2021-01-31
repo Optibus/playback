@@ -1,9 +1,10 @@
+import logging
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 from playback.studio.equalizer import Equalizer
 from playback.studio.recordings_lookup import find_matching_playable_recordings, \
     by_id_playable_recordings, RecordingLookupProperties
-import logging
+
 
 _logger = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class PlaybackStudio(object):
         _logger.info(u'Playing Category {}'.format(category))
         try:
             tuning = self.equalizer_tuner.create_category_tuning(category)
-        except Exception as ex:
+        except Exception as ex:  # pylint: disable=broad-except
             _logger.info(u'Cannot tune equalizer for category {} - {}'.format(category, ex))
             return ex
 

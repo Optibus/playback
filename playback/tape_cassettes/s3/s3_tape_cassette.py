@@ -4,10 +4,11 @@ from random import Random
 from zlib import compress, decompress
 import logging
 import uuid
-import sys
-from jsonpickle import encode, decode
-from parse import compile
 from fnmatch import fnmatch
+import six
+from jsonpickle import encode, decode
+from parse import compile  # pylint: disable=redefined-builtin
+
 
 from playback.exceptions import NoSuchRecording
 from playback.tape_cassette import TapeCassette
@@ -118,7 +119,7 @@ class S3TapeCassette(TapeCassette):
         encoding_duration = timed.duration
 
         with Timed() as timed:
-            if sys.version_info.major == 3 and type(encoded_full) is str:
+            if six.PY3 and isinstance(encoded_full, str):
                 compressed_full = compress(bytes(encoded_full.encode('utf-8')))
             else:
                 compressed_full = compress(encoded_full)
@@ -202,19 +203,21 @@ class S3TapeCassette(TapeCassette):
         content_filter = None
         if metadata:
 
-            def content_filter(recording_str):
+            def content_filter_func(recording_str):
                 recording_metadata = decode(recording_str)
-                for k, v in metadata.items():
+                for k, v in metadata.items():  # pylint: disable=invalid-name
                     recorded_value = recording_metadata.get(k)
                     if recorded_value is None and v is not None:
                         return False
-                    elif isinstance(v, str):
+
+                    if isinstance(v, str):
                         if not fnmatch(recorded_value, v):
                             return False
                     elif recorded_value != v:
                         return False
 
                 return True
+            content_filter = content_filter_func
 
         for key in self._s3_facade.iter_keys(
                 prefix=self.METADATA_KEY.format(key_prefix=self.key_prefix, id='{}/'.format(category)),

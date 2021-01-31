@@ -121,7 +121,7 @@ class Equalizer(object):
                             iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
 
                     yield comparison
-                except Exception as ex:
+                except Exception as ex:  # pylint: disable=broad-except
                     playback_failure += 1
                     _logger.info(u'Failed playing recording id {} - {}'.format(playable_recording.recording_id, ex))
 
@@ -137,7 +137,7 @@ class Equalizer(object):
         """
         :param counter:
         :type counter: collections.Counter
-        :param playback_failures: 
+        :param playback_failures:
         :type playback_failures: int
         :return: Representation of comparison statistics
         :rtype: str
