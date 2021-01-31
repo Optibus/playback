@@ -1,3 +1,6 @@
+# p3ready
+from __future__ import absolute_import
+from __future__ import print_function
 import unittest
 from random import shuffle, random
 
@@ -10,6 +13,8 @@ from time import sleep
 from playback.interception.output_interception import OutputInterceptionDataHandler
 from playback.tape_recorder import TapeRecorder, CapturedArg
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
+import six
+from six.moves import range
 
 
 class TestTapeRecorder(unittest.TestCase):
@@ -42,7 +47,11 @@ class TestTapeRecorder(unittest.TestCase):
         :param result: Operation result
         :type result: Any
         """
-        self.assertItemsEqual(playback_result.recorded_outputs, playback_result.playback_outputs)
+        if six.PY3:
+            self.assertCountEqual(playback_result.recorded_outputs, playback_result.playback_outputs)
+        else:
+            self.assertItemsEqual(playback_result.recorded_outputs, playback_result.playback_outputs)
+
         operation_output = next(po for po in playback_result.playback_outputs
                                 if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
         self.assertEqual(result, operation_output.value['args'][0])
@@ -477,7 +486,7 @@ class TestTapeRecorder(unittest.TestCase):
         instance = Operation()
         with self.assertRaises(ValueError) as e:
             instance.execute()
-        self.assertEqual("ValueError('Error',)", repr(e.exception))
+        self.assertEqual("Error", str(e.exception))
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -485,7 +494,7 @@ class TestTapeRecorder(unittest.TestCase):
         operation_output = next(po for po in playback_result.playback_outputs
                                 if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
         self.assertEqual(ValueError, type(operation_output.value['args'][0]))
-        self.assertEqual("ValueError('Error',)", repr(operation_output.value['args'][0]))
+        self.assertEqual("Error", str(operation_output.value['args'][0]))
         self.assertEqual(len(playback_result.recorded_outputs), len(playback_result.playback_outputs))
         self.assertGreater(playback_result.playback_duration, 0)
         self.assertGreater(playback_result.recorded_duration, 0)
@@ -503,7 +512,7 @@ class TestTapeRecorder(unittest.TestCase):
                 try:
                     self.get_value()
                 except Exception as ex:
-                    return repr(ex)
+                    return str(ex)
 
             @self.tape_recorder.intercept_input('input')
             def get_value(self):
@@ -511,7 +520,7 @@ class TestTapeRecorder(unittest.TestCase):
 
         instance = Operation(5)
         result = instance.execute()
-        self.assertEqual('Exception(5,)', result)
+        self.assertEqual('5', result)
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -529,7 +538,7 @@ class TestTapeRecorder(unittest.TestCase):
                 try:
                     self.output()
                 except Exception as ex:
-                    return repr(ex)
+                    return str(ex)
 
             @self.tape_recorder.intercept_output('output_function')
             def output(self):
@@ -537,7 +546,7 @@ class TestTapeRecorder(unittest.TestCase):
 
         instance = Operation(5)
         result = instance.execute()
-        self.assertEqual("Exception(5,)", result)
+        self.assertEqual("5", result)
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
@@ -572,7 +581,7 @@ class TestTapeRecorder(unittest.TestCase):
             def execute(self):
                 # We are shuffling here hoping to get different internal order for the dict between calls but still
                 # see we are consistent on input interception is these are equivalent dicts
-                items = range(100)
+                items = list(range(100))
                 shuffle(items)
                 argument = {'key{}'.format(i): i for i in items}
                 return self.get_value(argument)

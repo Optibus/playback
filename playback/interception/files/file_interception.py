@@ -3,7 +3,7 @@ import logging
 import os
 import base64
 import sys
-
+import six
 from playback.utils.timing_utils import Timed
 
 _logger = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 
 class FileInterception(object):
 
-    ABOVE_LIMIT_CONTENT = 'above interception limit'
+    ABOVE_LIMIT_CONTENT = six.b('above interception limit')
 
     def __init__(self, file_path_arg_index, file_path_arg_name, intercepted_size_limit=None):
         """
@@ -129,7 +129,7 @@ class FileInterception(object):
         :rtype: dict[str, str]
         """
 
-        if sys.version_info.major == 2:
+        if six.PY2:
             encoded_content=content.encode('base64')
         else:
             encoded_content=base64.b64encode(content)
@@ -151,7 +151,7 @@ class FileInterception(object):
         file_content = serialized_file['file_content']
 
         if file_content != FileInterception.ABOVE_LIMIT_CONTENT:
-            if sys.version_info.major == 2:
+            if six.PY2:
                 file_content=file_content.decode('base64')
             else:
                 file_content=base64.b64decode(file_content)

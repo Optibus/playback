@@ -22,7 +22,7 @@ def read_from_file(file_name):
     """
     Reads text from a file
     """
-    with open(file_name, "r") as text_file:
+    with open(file_name, "rb") as text_file:
         return text_file.read()
 
 

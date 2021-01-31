@@ -1,3 +1,5 @@
+# p3ready
+from __future__ import absolute_import
 import unittest
 
 from playback.studio.equalizer import ComparatorResult, EqualityStatus
@@ -63,7 +65,7 @@ class TestPlaybackStudio(unittest.TestCase):
 
                 def playback_function(recording):
                     cls_name = recording.get_metadata()[TapeRecorder.OPERATION_CLASS]
-                    if 'studio.A' in cls_name.values()[0]:
+                    if 'studio.A' in list(cls_name.values())[0]:
                         return A().execute()
                     return B().execute()
 

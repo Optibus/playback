@@ -1,3 +1,5 @@
+# p3ready
+from __future__ import absolute_import
 import unittest
 
 from contextlib2 import suppress
@@ -11,6 +13,7 @@ from playback.studio.recordings_lookup import find_matching_playable_recordings,
 from playback.studio.equalizer import Equalizer, EqualityStatus, ComparatorResult
 from playback.tape_recorder import TapeRecorder
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
+from six.moves import range
 
 
 def exact_comparator(recorded_result, playback_result):
@@ -390,7 +393,7 @@ class TestEqualizer(unittest.TestCase):
                     random_sample=True,
                     limit=3)
             )
-            first_list = map(lambda x: x.recording_id, list(playable_recordings))
+            first_list = [x.recording_id for x in list(playable_recordings)]
             self.assertEqual(len(first_list), 3)
 
         random.seed(4)
@@ -406,7 +409,7 @@ class TestEqualizer(unittest.TestCase):
                     random_sample=True,
                     limit=3)
             )
-            second_list = map(lambda x: x.recording_id, list(playable_recordings))
+            second_list = [x.recording_id for x in list(playable_recordings)]
             self.assertNotEqual(second_list, first_list)
 
     def test_run_with_specific_ids(self):
