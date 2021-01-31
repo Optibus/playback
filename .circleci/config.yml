@@ -99,16 +99,15 @@ jobs:
 workflows:
   build_and_deploy:
     jobs:
-      - lint
+      - lint:
+          filters:
+            tags:
+              only: /.*/
       - python2-tests:
-          requires:
-            - lint
           filters:
             tags:
               only: /.*/
       - python3-tests:
-          requires:
-            - lint
           filters:
             tags:
               only: /.*/
