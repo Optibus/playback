@@ -44,6 +44,8 @@ setuptools.setup(
         'mock==2.0.0',
         'moto==1.3.13',
         'pytest==4.6.9',
+        'pylint==2.6.0; python_version > "3.0"',
+        'pylint-junit==0.3.2; python_version > "3.0"'
     ]},
     classifiers=[
         "Programming Language :: Python :: 2.7",

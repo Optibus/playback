@@ -4,6 +4,22 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
+  lint:
+    docker:
+      - image: circleci/python:3.7.9
+    steps:
+      - checkout
+      - python/load-cache
+      - run:
+          command: sudo pip install -e .[dev]
+      - python/save-cache
+      - run:
+          command: |
+            mkdir ./results
+            pylint playback > ./results/pylint.xml
+      - store_test_results:
+          path: ./results
+
   python2-tests:
     docker:
       - image: circleci/python:2.7.18
@@ -14,7 +30,11 @@ jobs:
           command: sudo pip install -e .[dev]
       - python/save-cache
       - run:
-          command: pytest tests
+          command: |
+            mkdir ./results
+            pytest tests --junit-xml=./results/python2-tests.xml
+      - store_test_results:
+          path: ./results
 
   python3-tests:
     docker:
@@ -26,7 +46,11 @@ jobs:
           command: sudo pip install -e .[dev]
       - python/save-cache
       - run:
-          command: pytest tests
+          command: |
+            mkdir ./results
+            pytest tests --junit-xml=./results/python3-tests.xml
+      - store_test_results:
+          path: ./results
 
 
   bump:
@@ -74,11 +98,16 @@ jobs:
 workflows:
   build_and_deploy:
     jobs:
+      - lint
       - python2-tests:
+          requires:
+            - lint
           filters:
             tags:
               only: /.*/
       - python3-tests:
+          requires:
+            - lint
           filters:
             tags:
               only: /.*/
