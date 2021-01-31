@@ -3,8 +3,6 @@ from threading import Event, Lock, Thread
 from playback.recording import Recording
 from playback.tape_cassette import TapeCassette
 
-
-
 _logger = logging.getLogger(__name__)
 
 
