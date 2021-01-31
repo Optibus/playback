@@ -152,8 +152,8 @@ class FileInterception(object):
 
         if file_content != FileInterception.ABOVE_LIMIT_CONTENT:
             if six.PY2:
-                file_content=file_content.decode('base64')
+                file_content = file_content.decode('base64')
             else:
-                file_content=base64.b64decode(file_content)
+                file_content = base64.b64decode(file_content)
 
         return serialized_file['file_path'], file_content

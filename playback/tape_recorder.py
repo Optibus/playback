@@ -13,9 +13,6 @@ from decorator import contextmanager
 from playback.exceptions import InputInterceptionKeyCreationError, OperationExceptionDuringPlayback, \
     TapeRecorderException, RecordingKeyError
 
-
-
-
 _logger = logging.getLogger(__name__)
 
 

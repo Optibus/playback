@@ -20,6 +20,7 @@ def play_recording(playback_function, tape_recorder, recording_id):
 
     return play
 
+
 class RecordingLookupProperties(object):
     def __init__(self, start_date, end_date=None, metadata=None, limit=None, random_sample=False):
         """

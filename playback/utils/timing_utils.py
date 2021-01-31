@@ -1,5 +1,6 @@
 from time import time
 
+
 class Timed(object):
     """
     Tiny timing util that execution time of the scope it wraps
