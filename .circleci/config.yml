@@ -112,13 +112,14 @@ workflows:
             tags:
               only: /.*/
       - bump:
+          requires:
+            - python2-tests
+            - python3-tests
+            - lint
           filters:
             branches:
               only: main
       - deploy:
-          requires:
-            - python2-tests
-            - python3-tests
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/
