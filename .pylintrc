@@ -1,0 +1,13 @@
+[FORMAT]
+max-line-length=120
+[MASTER]
+load-plugins=pylint_junit
+[REPORTS]
+output-format=junit
+[MESSAGES CONTROL]
+disable=missing-module-docstring,useless-object-inheritance,logging-format-interpolation,missing-class-docstring,unnecessary-pass,raise-missing-from,oo-few-public-methods,super-with-arguments,too-few-public-methods
+[BASIC]
+good-names=id,ex,f
+[DESIGN]
+max-args=8
+max-attributes=12

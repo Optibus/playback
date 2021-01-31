@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import logging
 import os
 import base64
-import sys
 import six
 from playback.utils.timing_utils import Timed
 
@@ -45,7 +44,7 @@ class FileInterception(object):
         if intercepted_size_limit is not None:
             return intercepted_size_limit
 
-        return int(float(os.getenv('PLAYBACK_INTERCEPTED_FILE_SIZE_LIMIT', 500)))
+        return int(float(os.getenv('PLAYBACK_INTERCEPTED_FILE_SIZE_LIMIT', "500")))
 
     def _get_file_path(self, args, kwargs):
         """
@@ -99,7 +98,8 @@ class FileInterception(object):
             file_size_in_mb = self._mb_size(os.path.getsize(file_path))
             if file_size_in_mb > self.intercepted_size_limit:
                 _logger.info(u'Intercepted file is {:.2f}MB which is above interception limit of {:.2f}MB, '
-                             u'ignoring content'.format(file_size_in_mb, self.intercepted_size_limit, file_path))
+                             u'ignoring content in file {}'.format(
+                                 file_size_in_mb, self.intercepted_size_limit, file_path))
                 return True
         return False
 
@@ -130,9 +130,9 @@ class FileInterception(object):
         """
 
         if six.PY2:
-            encoded_content=content.encode('base64')
+            encoded_content = content.encode('base64')
         else:
-            encoded_content=base64.b64encode(content)
+            encoded_content = base64.b64encode(content)
 
         return {
             'file_path': file_path,

@@ -1,7 +1,7 @@
 import uuid
-
-from jsonpickle import encode, decode
 from collections import OrderedDict
+from jsonpickle import encode, decode
+
 from playback.recordings.memory.memory_recording import MemoryRecording
 from playback.tape_cassette import TapeCassette
 
@@ -22,7 +22,7 @@ class InMemoryTapeCassette(TapeCassette):
         :rtype: playback.recording.Recording
         """
         recording = MemoryRecording(u'{}/{}'.format(category, uuid.uuid1().hex))
-        recording._category = category
+        recording.category = category
         return recording
 
     def _save_recording(self, recording):
@@ -54,7 +54,7 @@ class InMemoryTapeCassette(TapeCassette):
         result = []
         for serialized_recording in self._recordings.values():
             recording = decode(serialized_recording)
-            if recording._category != category:
+            if recording.category != category:
                 continue
 
             if metadata:

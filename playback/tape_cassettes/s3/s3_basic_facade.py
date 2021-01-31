@@ -1,8 +1,9 @@
 import logging
-import boto3
 from functools import reduce
+import boto3
 
-from pytz import UTC as utc
+
+import pytz
 
 
 class S3BasicFacade(object):
@@ -68,8 +69,8 @@ class S3BasicFacade(object):
         predicates = []
 
         if start_date or end_date:
-            start_date = utc.localize(start_date) if start_date else None
-            end_date = utc.localize(end_date) if end_date else None
+            start_date = pytz.utc.localize(start_date) if start_date else None
+            end_date = pytz.utc.localize(end_date) if end_date else None
 
             predicates.append(lambda o: ((start_date is None or start_date <= o.last_modified) and
                                          (end_date is None or o.last_modified <= end_date)))
@@ -81,11 +82,11 @@ class S3BasicFacade(object):
         for s3_object in self._bucket.objects.filter(Prefix=prefix):
             if count == limit:
                 break
+            # pylint: disable=cell-var-from-loop
             is_relevant = reduce(lambda carry, current: carry and current(s3_object), predicates, True)
             if is_relevant:
                 count += 1
                 yield s3_object.key
-        pass
 
     def delete_by_prefix(self, prefix):
         """

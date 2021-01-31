@@ -1,13 +1,15 @@
+import logging
+from threading import Event, Lock, Thread
 from playback.recording import Recording
 from playback.tape_cassette import TapeCassette
-from threading import Event, Lock, Thread
-import logging
+
 
 
 _logger = logging.getLogger(__name__)
 
 
 class AsyncRecordOnlyTapeCassette(TapeCassette):
+    # pylint: disable=too-many-instance-attributes
     """
     Wraps TapeCassette with asynchronous execution of the operation that change the state of the recording, this
     cassette can only be used for recording and for playback
@@ -58,7 +60,7 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
     def get_recording(self, recording_id):
         raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
-    def iter_recording_ids(self, category, start_date=None, end_date=None):
+    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
         raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def extract_recording_category(self, recording_id):
@@ -122,7 +124,7 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         for recording_operation in current_flushed_operations:
             try:
                 recording_operation()
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 _logger.exception(u"Error running recording operation")
 
 

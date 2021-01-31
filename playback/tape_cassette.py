@@ -36,7 +36,8 @@ class TapeCassette(object):
         """
         pass
 
-    def abort_recording(self, recording):
+    def abort_recording(self, recording=None):
+        # pylint: disable=no-self-use
         """
         Aborts given recording without saving it
         :param recording: Recording to abort

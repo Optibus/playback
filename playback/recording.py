@@ -89,3 +89,14 @@ class Recording(object):
         :rtype: dict
         """
         pass
+
+    @property
+    def category(self):
+        """ recording category
+        :rtype:
+        """
+        return self._category
+
+    @category.setter
+    def category(self, value):
+        self._category = value
