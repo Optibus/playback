@@ -4,7 +4,7 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
-  build:
+  python2-tests:
     docker:
       - image: circleci/python:2.7.18
     steps:
@@ -14,7 +14,20 @@ jobs:
           command: sudo pip install -e .[dev]
       - python/save-cache
       - run:
-          command: nosetests tests
+          command: pytest tests
+
+  python3-tests:
+    docker:
+      - image: circleci/python:3.7.9
+    steps:
+      - checkout
+      - python/load-cache
+      - run:
+          command: sudo pip install -e .[dev]
+      - python/save-cache
+      - run:
+          command: pytest tests
+
 
   bump:
     docker:
@@ -36,10 +49,6 @@ jobs:
       - image: circleci/python:2.7.18
     steps:
       - checkout
-      - python/load-cache
-      - run:
-          command: sudo python setup.py install
-      - python/save-cache
       - run:
           command: |
             sudo pip install twine
@@ -63,24 +72,24 @@ jobs:
             twine upload dist/*
 
 workflows:
-  # main:
-  #   jobs:s
-  #     - build-and-test
   build_and_deploy:
     jobs:
-      - build:
+      - python2-tests:
+          filters:
+            tags:
+              only: /.*/
+      - python3-tests:
           filters:
             tags:
               only: /.*/
       - bump:
-          requires:
-            - build
           filters:
             branches:
               only: main
       - deploy:
           requires:
-            - build
+            - python2-tests
+            - python3-tests
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/
