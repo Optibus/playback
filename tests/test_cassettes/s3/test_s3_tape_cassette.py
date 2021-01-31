@@ -1,3 +1,5 @@
+# p3ready
+from __future__ import absolute_import
 import unittest
 import uuid
 from datetime import datetime, timedelta
@@ -6,11 +8,17 @@ import boto3
 from moto import mock_s3
 from playback.exceptions import NoSuchRecording
 from playback.recording import Recording
-
+import six
 from playback.tape_cassettes.s3.s3_tape_cassette import S3TapeCassette
-
+from six.moves import range
 TEST_BUCKET = 'test_bucket'
 
+
+def assert_items_equal(testcase, seq1, seq2, msg=""):
+    if six.PY3:
+        testcase.assertCountEqual(seq1, seq2, msg)
+    else:
+        testcase.assertItemsEqual(seq1, seq2, msg)
 
 @mock_s3
 class TestS3TapeCassette(unittest.TestCase):
@@ -45,8 +53,8 @@ class TestS3TapeCassette(unittest.TestCase):
         self.assertEqual({'obj_key1': 2, 'obj_key2': "bla"}, recording.get_data('key2'))
         self.assertEqual(recording.get_data('key2'), fetched_recording.get_data('key2'))
 
-        self.assertItemsEqual(['key1', 'key2'], recording.get_all_keys())
-        self.assertItemsEqual(recording.get_all_keys(), fetched_recording.get_all_keys())
+        assert_items_equal(self, ['key1', 'key2'], recording.get_all_keys())
+        assert_items_equal(self, recording.get_all_keys(), fetched_recording.get_all_keys())
 
     def test_create_save_and_fetch_recording_with_metadata(self):
         recording = self.cassette.create_new_recording('test_operation')
@@ -112,9 +120,9 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1')))
-        self.assertItemsEqual([recording3.id],
+        assert_items_equal(self, [recording3.id],
                               list(self.cassette.iter_recording_ids(category='test_operation2')))
 
     def test_fetch_recording_ids_by_category_and_date(self):
@@ -125,21 +133,21 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     start_date=datetime.utcnow() - timedelta(hours=1))))
-        self.assertItemsEqual([],
+        assert_items_equal(self, [],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     start_date=datetime.utcnow() + timedelta(hours=1))))
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     end_date=datetime.utcnow() + timedelta(hours=1))))
-        self.assertItemsEqual([],
+        assert_items_equal(self, [],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     end_date=datetime.utcnow() - timedelta(hours=1))))
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     start_date=datetime.utcnow() - timedelta(hours=1),
                                                                     end_date=datetime.utcnow() + timedelta(hours=1))))
@@ -154,7 +162,7 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        self.assertItemsEqual([recording2.id],
+        assert_items_equal(self, [recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     start_date=datetime.utcnow() - timedelta(hours=1),
                                                                     end_date=datetime.utcnow() + timedelta(hours=1),
@@ -170,11 +178,11 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        self.assertItemsEqual([recording2.id],
+        assert_items_equal(self, [recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     metadata={'property': 'val2*'})))
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     metadata={'property': 'val*'})))
 
@@ -188,11 +196,11 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording3)
 
-        self.assertItemsEqual([recording2.id],
+        assert_items_equal(self, [recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     metadata={'property': 'val2*'})))
 
-        self.assertItemsEqual([recording1.id, recording2.id],
+        assert_items_equal(self, [recording1.id, recording2.id],
                               list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                     metadata={'property': 'val*'})))
 
@@ -204,7 +212,7 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording3)
 
-        self.assertEquals(2, len(list(self.cassette.iter_recording_ids(category='test_operation1', limit=2))))
+        self.assertEqual(2, len(list(self.cassette.iter_recording_ids(category='test_operation1', limit=2))))
 
     def test_big_recording_storage_type(self):
         prefix = 'tests_' + uuid.uuid1().hex
@@ -213,10 +221,10 @@ class TestS3TapeCassette(unittest.TestCase):
             with patch.object(new_cassette._s3_facade, 'put_string', wraps=new_cassette._s3_facade.put_string) \
                     as patched:
                 recording = new_cassette.create_new_recording('test_operation')
-                recording.set_data('some_data', range(10000))
+                recording.set_data('some_data', list(range(10000)))
                 new_cassette.save_recording(recording)
                 args, kwargs = patched.call_args_list[0]
-                self.assertEquals('STANDARD_IA', kwargs['StorageClass'])
+                self.assertEqual('STANDARD_IA', kwargs['StorageClass'])
 
         with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
                             infrequent_access_kb_threshold=1) as new_cassette:
@@ -224,16 +232,16 @@ class TestS3TapeCassette(unittest.TestCase):
                               wraps=new_cassette._s3_facade.put_string) \
                     as patched:
                 recording = new_cassette.create_new_recording('test_operation')
-                recording.set_data('some_data', range(10))
+                recording.set_data('some_data', list(range(10)))
                 new_cassette.save_recording(recording)
                 args, kwargs = patched.call_args_list[0]
-                self.assertEquals('STANDARD', kwargs['StorageClass'])
+                self.assertEqual('STANDARD', kwargs['StorageClass'])
 
     def test_save_with_sampling_ratio(self):
         prefix = 'tests_' + uuid.uuid1().hex
 
         def sampling_calculator(category, size, r):
-            self.assertEquals(category, 'test_operation')
+            self.assertEqual(category, 'test_operation')
             self.assertIsInstance(r, Recording)
             return 1 if size < 500 else 0
 
@@ -244,7 +252,7 @@ class TestS3TapeCassette(unittest.TestCase):
             self.assertIsNotNone(new_cassette.get_recording(recording.id))
 
             recording = new_cassette.create_new_recording('test_operation')
-            recording.set_data('key', range(1000))
+            recording.set_data('key', list(range(1000)))
             new_cassette.save_recording(recording)
             with self.assertRaises(NoSuchRecording):
                 new_cassette.get_recording(recording.id)
