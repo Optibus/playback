@@ -79,7 +79,7 @@ class FileInterception(object):
         _logger.info(u'Reading intercepted file ({})'.format(file_path))
 
         with Timed() as timed:
-            with open(file_path, "r") as f:
+            with open(file_path, "rb") as f:
                 content = f.read()
             _logger.info(u'Done reading content size is {:.2f}MB ({})'.format(self._mb_size(len(content)), file_path))
             result = self._serialize_file(content, file_path)
