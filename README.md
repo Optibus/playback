@@ -1,4 +1,4 @@
-# playback
+# playback [![CircleCI](https://circleci.com/gh/Optibus/playback.svg?style=shield)](https://circleci.com/gh/Optibus/playback)
 A python decorator based framework that lets you "record" service operations when they are being executed, 
 intercepts all inputs and outputs which can later be used to replay exactly the same operation in a controlled isolated 
 sandbox as well as compare the output of the recorded operation vs the replayed operation.
