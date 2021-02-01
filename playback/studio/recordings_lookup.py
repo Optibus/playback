@@ -90,7 +90,7 @@ class PlayableRecording(object):
         :param recording_id: Recording id
         :type recording_id: basestring
         :param play: Plays the recording
-        :type play: func
+        :type play: function
         """
         self.recording_id = recording_id
         self.play = play

@@ -17,16 +17,18 @@ _logger = logging.getLogger(__name__)
 
 
 class TapeRecorder(object):
+    """
+    This class is used to "record" operation and "replay" (rerun) recorded operation on any code version.
+    The recording is done by placing different decorators that intercepts the operation, its inputs and outputs by using
+    decorators.
+    """
+
     DURATION = '_tape_recorder_recording_duration'
     RECORDED_AT = '_tape_recorder_recorded_at'
     OPERATION_OUTPUT_ALIAS = '_tape_recorder_operation'
     OPERATION_CLASS = '_tape_recorder_operation_class'
     EXCEPTION_IN_OPERATION = '_tape_recorder_exception_in_operation'
 
-    """
-    Acts as a "tape recorder" of operation, can be used to wrap a scope that inside that scope an operation can be
-    recorder with relevant data and its result. This recording can later be fetched and used for playback
-    """
     def __init__(self, tape_cassette):
         """
         :param tape_cassette: The storage driver to hold the recording in
@@ -188,6 +190,7 @@ class TapeRecorder(object):
         :param kwargs: Invocation keyword arguments
         :type kwargs: dict
         :param data_handler: Optional data handler that prepare and restore the output data for and from the recording
+        when default pickle serialization is not enough.
         :type data_handler: playback.interception.output_interception.OutputInterceptionDataHandler
         """
         interception_key = self._output_interception_key(alias, invocation_number) + '.output'
@@ -449,16 +452,20 @@ class TapeRecorder(object):
         """
         Decorates a static function that acts as an input to the operation, the result of the function is
         the  recorded input and the passed arguments and function name (or alias) or used as key for the input
-        :param alias: Input alias
+        :param alias: Input alias, used to uniquely identify the input function, hence the name should be unique across
+        all relevant inputs this operation can reach. This should be renamed as it will render previous recording
+        useless
         :type alias: str
         :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given,
-        this is useful when you have the same input method invoked many times on different class instances
+        this is useful when you have the same input method invoked many times with the same arguments on different class
+        instances
         :type alias_params_resolver: function
         :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
+        when default pickle serialization is not enough
         :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
-        :param capture_args: If list of indices is given, it will annotate which arg indices should be captured as part
-        of the intercepted key (invocation identification). If None, all args are captured
-        :type capture_args: None or list of int
+        :param capture_args: If a list is given, it will annotate which arg indices and/or names should be
+        captured as part of the intercepted key (invocation identification). If None, all args are captured
+        :type capture_args: list of CapturedArg
         :return: Decorated function
         :rtype: function
         """
@@ -468,16 +475,20 @@ class TapeRecorder(object):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
-        :param alias: Input alias
+        :param alias: Input alias, used to uniquely identify the input function, hence the name should be unique across
+        all relevant inputs this operation can reach. This should be renamed as it will render previous recording
+        useless
         :type alias: str
         :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given,
-        this is useful when you have the same input method invoked many times on different class instances
+        this is useful when you have the same input method invoked many times with the same arguments on different class
+        instances
         :type alias_params_resolver: function
         :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
+        when default pickle serialization is not enough
         :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
-        :param capture_args: If list of indices is given, it will annotate which arg indices should be captured as part
-        of the intercepted key (invocation identification). If None, all args are captured
-        :type capture_args: None or list of int
+        :param capture_args: If a list is given, it will annotate which arg indices and/or names should be
+        captured as part of the intercepted key (invocation identification). If None, all args are captured
+        :type capture_args: list of CapturedArg
         :return: Decorated function
         :rtype: function
         """
@@ -487,9 +498,12 @@ class TapeRecorder(object):
         """
         Decorates a static function that that acts as an output of the operation, the arguments are recorded as the
         output and the result of the function is captured
-        :param alias: Output alias
+        :param alias: Output alias, used to uniquely identify the input function, hence the name should be unique
+        across all relevant inputs this operation can reach. This should be renamed as it will render previous
+        recording useless
         :type alias: str
         :param data_handler: Optional data handler that prepare and restore the output data for and from the recording
+        when default pickle serialization is not enough.
         :type data_handler: playback.interception.output_interception.OutputInterceptionDataHandler
         :param fail_on_no_recorded_result: Whether to fail if there is no recording of a result or return None.
         Setting this to False is useful when there are already pre existing recording and this is a new output
@@ -505,14 +519,18 @@ class TapeRecorder(object):
         """
         Decorates a function that that acts as an output of the operation, the arguments are recorded as the output and
         the result of the function is captured
-        :param alias: Output alias
+        output and the result of the function is captured
+        :param alias: Output alias, used to uniquely identify the input function, hence the name should be unique
+        across all relevant inputs this operation can reach. This should be renamed as it will render previous
+        recording useless
         :type alias: str
         :param data_handler: Optional data handler that prepare and restore the output data for and from the recording
+        when default pickle serialization is not enough.
         :type data_handler: playback.interception.output_interception.OutputInterceptionDataHandler
         :param fail_on_no_recorded_result: Whether to fail if there is no recording of a result or return None.
-        Setting this to False is useful when there are already pre existing recording and this is a new output
+        Setting this to False is useful when there are already pre existing recordings and this is a new output
         interception while we want to be able to playback old recordings and the return value of the output is not
-        actually used.
+        actually used. Defaults to True
         :type fail_on_no_recorded_result: bool
         :return: Decorated function
         :rtype: function
@@ -523,9 +541,13 @@ class TapeRecorder(object):
         """
         Decorates a function that that acts as an output of the operation, the arguments are recorded as the output and
         the result of the function is captured
-        :param alias: Output alias
+        output and the result of the function is captured
+        :param alias: Output alias, used to uniquely identify the input function, hence the name should be unique
+        across all relevant inputs this operation can reach. This should be renamed as it will render previous
+        recording useless
         :type alias: str
         :param data_handler: Optional data handler that prepare and restore the output data for and from the recording
+        when default pickle serialization is not enough.
         :type data_handler: playback.interception.output_interception.OutputInterceptionDataHandler
         :param fail_on_no_recorded_result: Whether to fail if there is no recording of a result or return None.
         Setting this to False is useful when there are already pre existing recording and this is a new output
@@ -578,16 +600,21 @@ class TapeRecorder(object):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
-        :param alias: Input alias
+        :param alias: Input alias, used to uniquely identify the input function, hence the name should be unique across
+        all relevant inputs this operation can reach. This should be renamed as it will render previous recording
+        useless
         :type alias: str
         :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given,
+        this is useful when you have the same input method invoked many times with the same arguments on different class
+        instances
         this is useful when you have the same input method invoked many times on different class instances
         :type alias_params_resolver: function
         :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
+        when default pickle serialization is not enough
         :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
-        :param capture_args: If list of indices is given, it will annotate which arg indices should be captured as part
-        of the intercepted key (invocation identification). If None, all args are captured
-        :type capture_args: None or list of int
+        :param capture_args: If a list is given, it will annotate which arg indices and/or names should be
+        captured as part of the intercepted key (invocation identification). If None, all args are captured
+        :type capture_args: list of CapturedArg
         :param static_function: Is this a static function
         :type static_function: bool
         :return: Decorated function
@@ -636,7 +663,9 @@ class TapeRecorder(object):
         Formats the alias applying alias name resolver if provided
         :param alias: Alias to format
         :type alias: basestring
-        :param alias_params_resolver: Optional alias formatting parameters resolver
+        :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given,
+        this is useful when you have the same input method invoked many times with the same arguments on different class
+        instances
         :type alias_params_resolver: function
         :param args: Invocation args
         :type args: tuple
@@ -782,7 +811,9 @@ class TapeRecorder(object):
     def _input_interception_key(alias, capture_args, static_function, *args, **kwargs):
         """
         Creates a key that uniquely represent this input invocation based on alias and invocation arguments
-        :param alias: input alias
+        :param alias: Input alias, used to uniquely identify the input function, hence the name should be unique across
+        all relevant inputs this operation can reach. This should be renamed as it will render previous recording
+        useless
         :type alias: str
         :param static_function: Is function static
         :type static_function: bool

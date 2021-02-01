@@ -37,12 +37,15 @@ class S3TapeCassette(TapeCassette):
         :param transient: Is this a transient cassette, all recording under given prefix will be deleted when closed
         (only if not read only)
         :type transient: bool
-        :param read_only: Is this a read only recording (any write operations will raise an assertion)
+        :param read_only: If True, this cassette can only be used to fetch recordings and not to create new ones,
+        any write operations will raise an assertion.
         :type read_only: bool
         :param infrequent_access_kb_threshold: Threshold in KB that above it object will be saved in STANDARD_IA
         (infrequent access storage class), None means never (default)
         :type infrequent_access_kb_threshold: float
-        :param sampling_calculator: Optional sampling ratio calculator function
+        :param sampling_calculator: Optional sampling ratio calculator function, before saving the recording this
+        function will be triggered with (category, recording_size, recording),
+        and the function should return a number between 0 and 1 which specify its sampling rate
         :type sampling_calculator: function
         """
         _logger.info(u'Creating S3TapeCassette using bucket {}'.format(bucket))

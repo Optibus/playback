@@ -65,12 +65,13 @@ class Equalizer(object):
         :param playable_recordings: Iterator of playable recordings to compare
         :type playable_recordings:
         collections.Iterator[playback.comparison.recordings_lookup.PlayableRecording]
-        :param result_extractor: Extracts result from the recording and playback
+        :param result_extractor: A function used to extract the results that needs to be compared from the recording
+        and playback outputs
         :type result_extractor: function
-        :param comparison_data_extractor: Extracts optional data from the recording that will be passed to the
-        comparator
+        :param comparison_data_extractor: A function used to extract optional data from the recording that will be
+        passed to the comparator
         :type comparison_data_extractor: function
-        :param comparator: A function use to create the equality status by comparing the expected vs actual result
+        :param comparator: A function used to create the comparison result by comparing the recorded vs replayed result
         :type comparator: function
         """
         self.playable_recordings = playable_recordings
