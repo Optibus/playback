@@ -44,6 +44,7 @@ setuptools.setup(
         'mock==2.0.0',
         'moto==1.3.13',
         'pytest==4.6.9',
+        'parameterized==0.7.0',
         'pylint==2.6.0; python_version > "3.0"',
         'pylint-junit==0.3.2; python_version > "3.0"',
         'flake8==3.8.4; python_version > "3.0"',

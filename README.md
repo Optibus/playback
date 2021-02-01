@@ -209,7 +209,7 @@ def __init__(self, bucket, key_prefix='', region=None, transient=False, read_onl
 # Usage and examples - Comparing replayed vs recorded operation 
 ## Using the Equalizer
 In order to run a comparison we can use the `Equalizer` class and provide it with relevant playable recordings, 
-in this example we will look for 5 recordings from last week using the `find_matching_playable_recordings` function.
+in this example we will look for 5 recordings from last week using the `find_matching_recording_ids` function.
 The `Equalizer` relies on:
 * `playback_function` to replay the recorded operation.
 * `result_extractor` to extract the result that we want to compare from the captured outputs.
@@ -218,9 +218,9 @@ The `Equalizer` relies on:
 # Creates an iterator over relevant recordings which are ready to be played
 lookup_properties = RecordingLookupProperties(start_date=datetime.utcnow() - timedelta(days=7),
                                               limit=5)
-playable_recordings = find_matching_playable_recordings(tape_recorder, playback_function,
-                                                        ServiceOperation.__name__, 
-                                                        lookup_properties)
+recording_ids = find_matching_recording_ids(tape_recorder,
+                                            ServiceOperation.__name__, 
+                                            lookup_properties)
 
 
 def result_extractor(outputs):
@@ -245,8 +245,12 @@ def comparator(recorded_result, replay_result):
                                 recorded_result=recorded_result, replay_result=replay_result))
 
 
+def player(recording_id):
+    return tape_recorder.play(recording_id, playback_function)
+
+
 # Run comparison and output comparison result using the Equalizer
-equalizer = Equalizer(playable_recordings, result_extractor, comparator)
+equalizer = Equalizer(recording_ids, player, result_extractor, comparator)
 
 for comparison_result in equalizer.run_comparison():
     print('Comparison result {recording_id} is: {result}'.format(
@@ -261,17 +265,17 @@ recorded results (outputs) vs the replayed results. Underline it uses the `TapeR
 operations and the `TapeCassette` to look for and fetch relevant recordings
 
 ```python
-def __init__(self, playable_recordings, result_extractor, comparator,
-             comparison_data_extractor=None)
+def __init__(self, recording_ids, player, result_extractor, comparator,
+             comparison_data_extractor=None, compare_execution_config=None)
 ```
-* `playable_recordings` - Iterator of `PlayableRecording` where each item is a recording ready to be played with the 
-  `play` function. This is used to provide different recordings based on different search criteria.
-  Internally this function will trigger the `TapeRecorder.play` method when called
+* `recording_ids` - Iterator of recording ids to play and compare the results.
+* `player` - A function that plays a recording given an id.  
 * `result_extractor` - A function used to extract the results that needs to be compared from the recording and playback 
-  outputs
-* `comparator` - A function used to create the comparison result by comparing the recorded vs replayed result
+  outputs.
+* `comparator` - A function used to create the comparison result by comparing the recorded vs replayed result.
 * `comparison_data_extractor` - A function used to extract optional data from the recording that will be passed to the 
-  comparator
+  comparator.
+* `compare_execution_config` -  Configuration specific to the comparison execution flow
   
 For more context, you acn look at the [basic service operation](examples/basic_service_operation.py/) example 
   
@@ -311,7 +315,7 @@ between the recorded outputs to the playback outputs
 
 ```python
 def __init__(self, categories, equalizer_tuner, tape_recorder, lookup_properties=None, 
-             recording_ids=None)
+             recording_ids=None, compare_execution_config=None)
 ```
 * `categories` - Categories (operations) to conduct comparison for
 * `equalizer_tuner` - Given a category return a corresponding equalizer tuning to be used for playback and comparison
@@ -319,6 +323,7 @@ def __init__(self, categories, equalizer_tuner, tape_recorder, lookup_properties
 * `lookup_properties` - Optional `RecordingLookupProperties` used to filter recordings by
 * `recording_ids` - Optional specific recording ids, if given the `categories` and `lookup_properties` are ignored and 
   only the given recording ids will be played
+* `compare_execution_config` -  Configuration specific to the comparison execution flow  
   
 ## `EqualizerTuner` class
 An abstract class that is used to create an `EqualizerTuning` per category that contains the correct plugins (functions)

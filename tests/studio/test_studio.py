@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import unittest
 
-from playback.studio.equalizer import ComparatorResult, EqualityStatus
+from playback.studio.equalizer import ComparatorResult, EqualityStatus, CompareExecutionConfig
 from playback.studio.studio import PlaybackStudio, RecordingLookupProperties
 from playback.studio.equalizer_tuning import EqualizerTuning, EqualizerTuner
 from playback.tape_recorder import TapeRecorder
@@ -76,7 +76,8 @@ class TestPlaybackStudio(unittest.TestCase):
         equalizer_tuner = MockEqualizerTuner()
         start_date = 'a'
         studio = PlaybackStudio(categories, equalizer_tuner, self.tape_recorder,
-                                lookup_properties=RecordingLookupProperties(start_date), recording_ids=recording_ids)
+                                lookup_properties=RecordingLookupProperties(start_date), recording_ids=recording_ids,
+                                compare_execution_config=CompareExecutionConfig(keep_results_in_comparison=True))
         result = studio.play()
 
         a_results = list(result['A'])

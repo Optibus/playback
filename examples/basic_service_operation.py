@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from uuid import uuid1
 
 from playback.studio.equalizer import Equalizer, ComparatorResult, EqualityStatus
-from playback.studio.recordings_lookup import find_matching_playable_recordings, RecordingLookupProperties
+from playback.studio.recordings_lookup import RecordingLookupProperties, find_matching_recording_ids
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 from playback.tape_recorder import TapeRecorder
 
@@ -75,8 +75,7 @@ tape_recorder.play(tape_cassette.get_last_recording_id(), playback_function)
 # Creates an iterator over relevant recordings which are ready to be played
 lookup_properties = RecordingLookupProperties(start_date=datetime.utcnow() - timedelta(days=7),
                                               limit=5)
-playable_recordings = find_matching_playable_recordings(tape_recorder, playback_function,
-                                                        ServiceOperation.__name__, lookup_properties)
+recording_ids = find_matching_recording_ids(tape_recorder, ServiceOperation.__name__, lookup_properties)
 
 
 def result_extractor(outputs):
@@ -100,8 +99,12 @@ def comparator(recorded_result, replay_result):
                                 recorded_result=recorded_result, replay_result=replay_result))
 
 
+def player(recording_id):
+    return tape_recorder.play(recording_id, playback_function)
+
+
 # Run comparison and output comparison result using the Equalizer
-equalizer = Equalizer(playable_recordings, result_extractor, comparator)
+equalizer = Equalizer(recording_ids, player, result_extractor, comparator)
 
 for comparison_result in equalizer.run_comparison():
     print('Comparison result {recording_id} is: {result}'.format(
