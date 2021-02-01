@@ -21,9 +21,7 @@ class InMemoryTapeCassette(TapeCassette):
         :return: Creates a new recording object
         :rtype: playback.recording.Recording
         """
-        recording = MemoryRecording(u'{}/{}'.format(category, uuid.uuid1().hex))
-        recording.category = category
-        return recording
+        return MemoryRecording(u'{}/{}'.format(category, uuid.uuid1().hex))
 
     def _save_recording(self, recording):
         """
@@ -54,7 +52,7 @@ class InMemoryTapeCassette(TapeCassette):
         result = []
         for serialized_recording in self._recordings.values():
             recording = decode(serialized_recording)
-            if recording.category != category:
+            if self.extract_recording_category(recording.id) != category:
                 continue
 
             if metadata:
