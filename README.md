@@ -345,6 +345,16 @@ class EqualizerTuning(object):
 ```
 
 # Contribution
-TBD
+Feel free to send pull requests and raise issues. Make sure to add/modify tests to cover your changes.
+Please squash your commits in the pull request to one commit. If there is a good logical reason to break it into 
+few commits, multiple pull requests are preferred unless there is a good logical reason to bundle the commits to the 
+same pull request.
+
+Please pay attention that as of now, this framework is compatible with both python 2 and 3, hence any changes should 
+keep that. We use the six framework to help keep this support.
+
 ## Running tests
-TBD
+Tests are automatically run in the ci flow using circle-ci. In order to run them locally you should install 
+development requirements:
+`pip install -e .[dev]`
+and then run `pytest tests`
