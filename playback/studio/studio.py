@@ -2,9 +2,7 @@ import logging
 from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 from playback.studio.equalizer import Equalizer
-from playback.studio.recordings_lookup import find_matching_playable_recordings, \
-    by_id_playable_recordings, RecordingLookupProperties
-
+from playback.studio.recordings_lookup import find_matching_recording_ids, RecordingLookupProperties
 
 _logger = logging.getLogger(__name__)
 
@@ -16,7 +14,8 @@ class PlaybackStudio(object):
     DEFAULT_LOOKUP_PROPERTIES = RecordingLookupProperties(
         start_date=datetime.utcnow() - timedelta(days=7), limit=20)
 
-    def __init__(self, categories, equalizer_tuner, tape_recorder, lookup_properties=None, recording_ids=None):
+    def __init__(self, categories, equalizer_tuner, tape_recorder, lookup_properties=None, recording_ids=None,
+                 compare_execution_config=None):
         """
         :param categories: Categories (operations) to conduct comparison for
         :type categories: list of str
@@ -29,12 +28,15 @@ class PlaybackStudio(object):
         :type lookup_properties: RecordingLookupProperties
         :param tape_recorder: The tape recorder that will be used to play the recordings
         :type tape_recorder: playback.tape_recorder.TapeRecorder
+        :param compare_execution_config: Configuration specific to the comparison execution flow
+        :type compare_execution_config: CompareExecutionConfig
         """
         self.categories = categories
         self.recording_ids = recording_ids
         self.equalizer_tuner = equalizer_tuner
         self.lookup_properties = lookup_properties or self.DEFAULT_LOOKUP_PROPERTIES
         self.tape_recorder = tape_recorder
+        self.compare_execution_config = compare_execution_config
 
     def play(self):
         """
@@ -83,12 +85,15 @@ class PlaybackStudio(object):
             return ex
 
         if recording_ids:
-            playable_recordings = by_id_playable_recordings(
-                self.tape_recorder, tuning.playback_function, recording_ids)
+            recording_id_iterator = iter(recording_ids)
         else:
-            playable_recordings = find_matching_playable_recordings(
-                self.tape_recorder, tuning.playback_function, category, self.lookup_properties)
+            recording_id_iterator = find_matching_recording_ids(
+                self.tape_recorder, category, self.lookup_properties)
 
-        equalizer = Equalizer(playable_recordings, tuning.result_extractor, tuning.comparator,
-                              comparison_data_extractor=tuning.comparison_data_extractor)
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, tuning.playback_function)
+
+        equalizer = Equalizer(recording_id_iterator, player, tuning.result_extractor, tuning.comparator,
+                              comparison_data_extractor=tuning.comparison_data_extractor,
+                              compare_execution_config=self.compare_execution_config)
         return equalizer.run_comparison()
