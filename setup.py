@@ -49,6 +49,7 @@ setuptools.setup(
         'pylint-junit==0.3.2; python_version > "3.0"',
         'flake8==3.8.4; python_version > "3.0"',
         'flake8-formatter-junit-xml==0.0.6; python_version > "3.0"',
+        'pytest-cov==2.10.1; python_version > "3.0"'
     ]},
     classifiers=[
         "Programming Language :: Python :: 2.7",

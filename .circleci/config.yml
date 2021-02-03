@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   python: circleci/python@0.2.1
+  codecov: codecov/codecov@1.0.2
 
 jobs:
   lint:
@@ -49,9 +50,20 @@ jobs:
       - run:
           command: |
             mkdir ./results
-            pytest tests --junit-xml=./results/python3-tests.xml
+            pytest --cov=playback --cov-config=.coveragerc tests --junit-xml=./results/python3-tests.xml
+      - run:
+          command: |
+            coverage html
+            coverage report --fail-under 80
+            cp .coverage htmlcov
+      - codecov/upload:
+          file: .coverage
+          token: ${CODECOV_TOKEN}
       - store_test_results:
           path: ./results
+      - store_artifacts:
+          path: htmlcov
+
 
 
   bump:
