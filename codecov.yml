@@ -1,10 +1,12 @@
+codecov:
+  require_ci_to_pass: false
+
 fixes:
   - "/home/circleci/project/::"        # reduce root e.g., "before/path/" => "path/"
 
 coverage:
   status:
     project:
-      default: false
-      tests:
-        target: 100%
-        paths: "playback/"
+      default:
+        target: 95%
+
