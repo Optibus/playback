@@ -234,7 +234,9 @@ class Equalizer(object):
                     execution_result = self._play_and_compare_recording(recording_id)
                     self._compare_results.put((True, execution_result))
                 except Exception as ex:  # pylint: disable=broad-except
-                    self._compare_results.put(False, repr(ex))
+                    logging.info(u'Failure during play and compare in playback process of id {} - {}'.format(
+                        recording_id, ex))
+                    self._compare_results.put((False, repr(ex)))
             except mp.queues.Empty:
                 # Every 0.05 second the process will get this as we poll with 0.05 second timeout
                 # (in order to listen to termination event)
