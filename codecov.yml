@@ -1,0 +1,10 @@
+fixes:
+  - "/home/circleci/project/::"        # reduce root e.g., "before/path/" => "path/"
+
+coverage:
+  status:
+    project:
+      default: false
+      tests:
+        target: 100%
+        paths: "playback/"
