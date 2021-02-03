@@ -203,6 +203,81 @@ class TestEqualizer(unittest.TestCase):
     @parameterized.expand([("compare_in_dedicated_process", True),
                            ("playback_same_process", False),
                            ])
+    def test_with_failure_comparison(self, name, compare_in_dedicated_process):
+
+        class Operation(object):
+            def __init__(self, value=None, multiply_input=1):
+                self._value = value
+                self.multiply_input = multiply_input
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input * self.multiply_input
+
+        Operation(3).execute()
+        Operation(4).execute()
+        Operation(5).execute()
+
+        playback_counter = [0]
+
+        def playback_function(recording):
+            playback_counter[0] += 1
+            if playback_counter[0] == 2:
+                operation = Operation(multiply_input=2)
+            elif playback_counter[0] == 3:
+                operation = Operation(multiply_input=100)
+            else:
+                operation = Operation()
+            return operation.execute()
+
+        def result_extractor(outputs):
+            value = next(o.value['args'][0] for o in outputs if TapeRecorder.OPERATION_OUTPUT_ALIAS in o.key)
+            if value == 4:
+                raise Exception('extract error')
+            return value
+
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
+
+        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
+                          wraps=self.tape_cassette.iter_recording_ids) as mock:
+            start_date = datetime.utcnow() - timedelta(hours=1)
+            end_date = datetime.utcnow() + timedelta(hours=1)
+            playable_recordings = find_matching_recording_ids(
+                self.tape_recorder,
+                category=Operation.__name__,
+                lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+            )
+
+            runner = Equalizer(playable_recordings, player, result_extractor=result_extractor,
+                               comparator=exact_comparator,
+                               compare_execution_config=CompareExecutionConfig(
+                                   keep_results_in_comparison=False,
+                                   compare_in_dedicated_process=compare_in_dedicated_process
+                               ))
+
+            with patch.object(Equalizer, '_play_and_compare_recording',
+                              wraps=runner._play_and_compare_recording) as wrapped:
+                comparison = list(runner.run_comparison())
+            if compare_in_dedicated_process:
+                wrapped.assert_not_called()
+            else:
+                wrapped.assert_called()
+
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Failed, comparison[1].comparator_status.equality_status)
+
+        self.assertIsNone(comparison[0].expected)
+        self.assertIsNone(comparison[0].actual)
+
+    @parameterized.expand([("compare_in_dedicated_process", True),
+                           ("playback_same_process", False),
+                           ])
     def test_comparison_with_meta_and_limit_filtering(self, name, compare_in_dedicated_process):
 
         class Operation(object):
