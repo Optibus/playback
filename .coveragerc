@@ -1,3 +1,8 @@
 [run]
 omit =
     */tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    @abstract
