@@ -60,7 +60,7 @@ class Comparison(object):
 
 
 class CompareExecutionConfig(object):
-    def __init__(self, keep_results_in_comparison=False, compare_in_dedicated_process=True,
+    def __init__(self, keep_results_in_comparison=False, compare_in_dedicated_process=False,
                  compare_process_recycle_rate=5):
         """
         :param keep_results_in_comparison: Whether to keep results in the comparison result object
