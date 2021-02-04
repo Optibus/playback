@@ -1,7 +1,5 @@
 # Contributing
 
-The documentation  of Optibus Playback is contained in this repository. To contribute
-to this project we recomend you start by reading the contributing guidelines (Please add your link)
 
 ## Contributor License Agreement
 
