@@ -154,10 +154,10 @@ class AsyncRecording(Recording):
         self._add_async_operation_callback(lambda: self.wrapped_recording.set_data(key, value))
 
     def get_data(self, key):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def get_all_keys(self):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def _add_metadata(self, metadata):
         """
@@ -167,4 +167,4 @@ class AsyncRecording(Recording):
         self._add_async_operation_callback(lambda: self.wrapped_recording.add_metadata(metadata))
 
     def get_metadata(self):
-        raise Exception("AsyncTapeCassette should only be used for recording, not playback")
+        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
