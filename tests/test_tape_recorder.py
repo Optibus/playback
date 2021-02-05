@@ -501,6 +501,36 @@ class TestTapeRecorder(unittest.TestCase):
         self.assertDictContainsSubset({TapeRecorder.EXCEPTION_IN_OPERATION: True},
                                       playback_result.original_recording.get_metadata())
 
+    def test_record_and_playback_basic_operation_no_parameters_raise_unserializable_error(self):
+
+        class UnserializableException(Exception):
+            def __getstate__(self):
+                raise Exception("Unserializable")
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                raise UnserializableException("Error")
+
+        instance = Operation()
+        with self.assertRaises(UnserializableException) as e:
+            instance.execute()
+        self.assertEqual("Error", str(e.exception))
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: Operation().execute())
+        operation_output = next(po for po in playback_result.playback_outputs
+                                if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
+        self.assertEqual(UnserializableException, operation_output.value['args'][0]['error_type'])
+        self.assertIn('Error', operation_output.value['args'][0]['error_repr'])
+        self.assertEqual(len(playback_result.recorded_outputs), len(playback_result.playback_outputs))
+        self.assertGreater(playback_result.playback_duration, 0)
+        self.assertGreater(playback_result.recorded_duration, 0)
+        self.assertDictContainsSubset({TapeRecorder.EXCEPTION_IN_OPERATION: True},
+                                      playback_result.original_recording.get_metadata())
+
     def test_record_and_playback_basic_operation_data_interception_no_arguments_raise_exception(self):
         class Operation(object):
 
@@ -1008,3 +1038,28 @@ class TestTapeRecorder(unittest.TestCase):
         self.tape_recorder.disable_recording()
         instance = Operation()
         self.assertIsNone(instance.execute())
+
+    def test_record_and_playback_record_and_play_data(self):
+        tape_recorder = self.tape_recorder
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                if tape_recorder.in_playback_mode:
+                    return tape_recorder.play_data('data')
+                else:
+                    data = 5
+                    tape_recorder.record_data('data', data)
+                    return data
+
+        instance = Operation()
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        with patch.object(TapeRecorder, 'play_data', wraps=tape_recorder.play_data) as wrapped:
+            playback_result = self.tape_recorder.play(recording_id,
+                                                      playback_function=lambda recording: Operation().execute())
+        self._assert_playback_vs_recording(playback_result, result)
+        wrapped.assert_called()

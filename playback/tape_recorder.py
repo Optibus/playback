@@ -419,7 +419,7 @@ class TapeRecorder(object):
             return exception
         except Exception:
             # Upon any failure of encoding, we return a basic form of type of exception and its message
-            return {'error_type': type(exception), 'error_message': repr(exception)}
+            return {'error_type': type(exception), 'error_repr': repr(exception)}
 
     def record_data(self, key, value):
         """
