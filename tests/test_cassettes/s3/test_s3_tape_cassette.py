@@ -48,6 +48,7 @@ class TestS3TapeCassette(unittest.TestCase):
         self.assertEqual(recording.id, fetched_recording.id)
 
         self.assertEqual(5, recording.get_data('key1'))
+        self.assertEqual(5, recording['key1'])
         self.assertEqual(recording.get_data('key1'), fetched_recording.get_data('key1'))
 
         self.assertEqual({'obj_key1': 2, 'obj_key2': "bla"}, recording.get_data('key2'))

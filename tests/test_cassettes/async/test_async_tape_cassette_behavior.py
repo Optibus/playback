@@ -27,3 +27,25 @@ class TestAsyncTapeCassette(unittest.TestCase):
         self.assertEqual(2, recording.get_data('a'))
         self.assertEqual(1, recording.get_data('b'))
         self.assertEqual({'c': 3, 'd': 4}, recording.get_metadata())
+
+    def test_read_operation_raising_errors(self):
+        in_memory_cassette = DelayedInMemoryTapeCassette(delay=0.1)
+        tape_cassette = AsyncRecordOnlyTapeCassette(in_memory_cassette, timeout_on_close=5)
+        tape_cassette.start()
+        try:
+            with self.assertRaises(TypeError):
+                tape_cassette.get_recording('a')
+            with self.assertRaises(TypeError):
+                tape_cassette.iter_recording_ids('a')
+            with self.assertRaises(TypeError):
+                tape_cassette.extract_recording_category('a')
+
+            recording = tape_cassette.create_new_recording('category')
+            with self.assertRaises(TypeError):
+                recording.get_data('a')
+            with self.assertRaises(TypeError):
+                recording.get_all_keys()
+            with self.assertRaises(TypeError):
+                recording.get_metadata()
+        finally:
+            tape_cassette.close()
