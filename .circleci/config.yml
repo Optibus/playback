@@ -55,22 +55,6 @@ jobs:
       - store_test_results:
           path: ./results
 
-
-  bump:
-    docker:
-      - image: circleci/python:2.7.18
-    steps:
-      - checkout
-      - run:
-          command: pip install bumpversion
-      - run:
-          command: |
-            git config user.email "playback_circleci@optibus.com"
-            git config user.name "playback_circleci"
-            bumpversion patch
-      - run:
-          command: git push --follow-tags --set-upstream origin ${CIRCLE_BRANCH}
-
   deploy:
     docker:
       - image: circleci/python:2.7.18
@@ -113,14 +97,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - bump:
-          requires:
-            - python2-tests
-            - python3-tests
-            - lint
-          filters:
-            branches:
-              only: main
       - deploy:
           filters:
             tags:
