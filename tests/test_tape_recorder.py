@@ -1046,12 +1046,14 @@ class TestTapeRecorder(unittest.TestCase):
 
             @self.tape_recorder.operation()
             def execute(self):
+                data = tape_recorder.play_data('data')
+                tape_recorder.record_data('data', data)
                 if tape_recorder.in_playback_mode:
-                    return tape_recorder.play_data('data')
-                else:
-                    data = 5
-                    tape_recorder.record_data('data', data)
                     return data
+
+                data = 5
+                tape_recorder.record_data('data', data)
+                return data
 
         instance = Operation()
         result = instance.execute()

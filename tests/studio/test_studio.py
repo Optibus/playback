@@ -43,7 +43,7 @@ class TestPlaybackStudio(unittest.TestCase):
         B().execute()
 
         if not use_recording_ids:
-            categories = ['A', 'B']
+            categories = ['A', 'B', 'C']
             recording_ids = None
         else:
             categories = None
