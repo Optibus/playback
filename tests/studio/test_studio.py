@@ -52,6 +52,8 @@ class TestPlaybackStudio(unittest.TestCase):
         class MockEqualizerTuner(EqualizerTuner):
 
             def create_category_tuning(self, category):
+                if category not in ['A', 'B']
+                    raise Exception("Unsupported")
 
                 def result_extractor(outputs):
                     return next(o.value['args'][0] for o in outputs if TapeRecorder.OPERATION_OUTPUT_ALIAS in o.key)
