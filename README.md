@@ -353,6 +353,8 @@ same pull request.
 Please pay attention that as of now, this framework is compatible with both python 2 and 3, hence any changes should
 keep that. We use the six framework to help keep this support.
 
+To contribute, please advise our [contributing policy](https://github.com/Optibus/playback/blob/main/CONTRIBUTING.md)
+
 ## Running tests
 Tests are automatically run in the ci flow using circle-ci. In order to run them locally you should install
 development requirements:
