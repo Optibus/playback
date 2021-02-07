@@ -9,7 +9,7 @@ agreement (CLA) you're basically just attesting to the fact
 that you are the author of the contribution and that you're freely
 contributing it under the terms of the CLA.
 
-When you contribute to the [Optibus OS Project] Project with a new pull request,
+When you contribute to the Optibus Playback Project with a new pull request,
 a bot will evaluate whether you have signed the CLA. If required, the
 bot will comment on the pull request, including a link to accept the
 agreement. The [individual CLA](https://www.optibus.com/wp-content/uploads/2021/02/Contribution-License-Agreement-Optibus-1.pdf)
