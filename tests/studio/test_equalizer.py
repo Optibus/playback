@@ -390,8 +390,14 @@ class TestEqualizer(unittest.TestCase):
             comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual('{status} - {status}'.format(
+            status=comparison[0].comparator_status.equality_status.name), str(comparison[0].comparator_status))
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+        self.assertEqual('{status} - {status}'.format(
+            status=comparison[1].comparator_status.equality_status.name), str(comparison[1].comparator_status))
         self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
+        self.assertEqual('{status} - {status}'.format(
+            status=comparison[2].comparator_status.equality_status.name), str(comparison[2].comparator_status))
 
         self.assertEqual(EqualityStatus.Equal.name, comparison[0].comparator_status.message)
         self.assertEqual(EqualityStatus.Different.name, comparison[1].comparator_status.message)

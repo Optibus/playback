@@ -122,8 +122,8 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         for recording_operation in current_flushed_operations:
             try:
                 recording_operation()
-            except Exception:  # pylint: disable=broad-except
-                _logger.exception(u"Error running recording operation")
+            except Exception as ex:  # pylint: disable=broad-except
+                _logger.exception(u"Error running recording operation - {}".format(ex))
 
 
 class AsyncRecording(Recording):
