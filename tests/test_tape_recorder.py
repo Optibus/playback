@@ -11,7 +11,7 @@ from playback.interception.input_interception import InputInterceptionDataHandle
 from time import sleep
 
 from playback.interception.output_interception import OutputInterceptionDataHandler
-from playback.tape_recorder import TapeRecorder, CapturedArg
+from playback.tape_recorder import TapeRecorder, CapturedArg, RecordingParameters
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 import six
 from six.moves import range
@@ -319,6 +319,22 @@ class TestTapeRecorder(unittest.TestCase):
 
     def test_skip_recording_decorator(self):
 
+        @self.tape_recorder.recording_params(RecordingParameters(skipped=True))
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return 5
+
+        instance = Operation()
+        with patch.object(InMemoryTapeCassette, 'create_new_recording', wraps=self.tape_cassette.create_new_recording) \
+                as intercepted:
+            result = instance.execute()
+            intercepted.assert_not_called()
+
+        self.assertEqual(5, result)
+
+    def test_skip_recording_decorator_compatible(self):
         @self.tape_recorder.recording_params(skipped=True)
         class Operation(object):
 
@@ -585,7 +601,7 @@ class TestTapeRecorder(unittest.TestCase):
 
     def test_sampling_rate_class_level_decorator(self):
 
-        @self.tape_recorder.recording_params(sampling_rate=0.1)
+        @self.tape_recorder.recording_params(RecordingParameters(sampling_rate=0.1))
         class Operation(object):
 
             @self.tape_recorder.operation()
@@ -789,7 +805,7 @@ class TestTapeRecorder(unittest.TestCase):
         local_tape_recorder = self.tape_recorder
         test_self = self
 
-        @self.tape_recorder.recording_params(sampling_rate=0.2)
+        @self.tape_recorder.recording_params(RecordingParameters(sampling_rate=0.2))
         class Operation(object):
 
             @self.tape_recorder.operation()
@@ -814,7 +830,7 @@ class TestTapeRecorder(unittest.TestCase):
         local_tape_recorder = self.tape_recorder
         test_self = self
 
-        @self.tape_recorder.recording_params(sampling_rate=0.1, ignore_enforced_sampling=True)
+        @self.tape_recorder.recording_params(RecordingParameters(sampling_rate=0.1, ignore_enforced_sampling=True))
         class Operation(object):
 
             @self.tape_recorder.operation()
