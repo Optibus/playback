@@ -1081,3 +1081,61 @@ class TestTapeRecorder(unittest.TestCase):
                                                       playback_function=lambda recording: Operation().execute())
         self._assert_playback_vs_recording(playback_result, result)
         wrapped.assert_called()
+
+    @patch('playback.tape_recorder.encode', side_effect=encode)
+    def test_record_and_playback_basic_operation_data_interception_copy_data(self, wrapped_encode):
+        @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
+        class Operation(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_value(self):
+                return self.seed
+
+        instance = Operation(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                playback_function=lambda recording: Operation().execute())
+        wrapped_encode.assert_called()
+        self._assert_playback_vs_recording(playback_result, result)
+
+    @patch('playback.tape_recorder.decode')
+    def test_record_and_playback_basic_operation_data_interception_copy_data_exception(self, wrapped_decode):
+
+        @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
+        class Operation(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_value(self):
+                return self.seed
+
+        def cannot(input):
+            raise Exception('cannot')
+
+        wrapped_decode.side_effect = cannot
+
+        instance = Operation(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                playback_function=lambda recording: Operation().execute())
+        wrapped_decode.assert_called()
+        self._assert_playback_vs_recording(playback_result, result)
