@@ -279,21 +279,16 @@ class TapeRecorder(object):
         """
         return self._operation(class_function=False, metadata_extractor=metadata_extractor)
 
-    def recording_params(self, sampling_rate=1.0, ignore_enforced_sampling=False, skipped=False):
+    def recording_params(self, recording_parameters=None, **kwargs):
         """
-        :param sampling_rate: Optional sampling rate (between 0 and 1) to applied on recording. Default is 1
-        :type sampling_rate: float
-        :param ignore_enforced_sampling: Whether to ignore enforce sample explicit calls
-        :type ignore_enforced_sampling: bool
-        :param skipped: This class should be skipped for recording
-        :type skipped: bool
+        :param recording_parameters: Recording Parameters objects for this operation
+        :type sampling_rate: RecordingParameters
         :return: Class decorator that configure specific recording parameter for the operation class
         :rtype: function
         """
 
         def wrapper(cls):
-            self._classes_recording_params[cls] = RecordingParameters(
-                sampling_rate=sampling_rate, ignore_enforced_sampling=ignore_enforced_sampling, skipped=skipped)
+            self._classes_recording_params[cls] = recording_parameters or RecordingParameters(**kwargs)
             return cls
 
         return wrapper
@@ -875,9 +870,11 @@ Output = namedtuple('Output', 'key value')
 class RecordingParameters(object):
     def __init__(self, sampling_rate=1.0, ignore_enforced_sampling=False, skipped=False):
         """
-        :param sampling_rate: Sampling rate for recording, between 0 and 1. Default is 0
+        :param sampling_rate: Optional sampling rate (between 0 and 1) to applied on recording. Default is 1
         :type sampling_rate: float
-        :param skipped: Recording should be skipped all together
+        :param ignore_enforced_sampling: Whether to ignore enforce sample explicit calls
+        :type ignore_enforced_sampling: bool
+        :param skipped: This class should be skipped for recording
         :type skipped: bool
         """
         self.sampling_rate = sampling_rate
