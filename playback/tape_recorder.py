@@ -3,17 +3,26 @@
 from __future__ import absolute_import
 from collections import namedtuple, Counter
 import logging
-from copy import copy
 from random import Random
 from datetime import datetime
 from time import time
-from jsonpickle import encode
+from jsonpickle import encode, decode
 from decorator import contextmanager
 
 from playback.exceptions import InputInterceptionKeyCreationError, OperationExceptionDuringPlayback, \
     TapeRecorderException, RecordingKeyError
 
 _logger = logging.getLogger(__name__)
+
+
+def pickle_copy(value):
+
+    """ copies any object (deeply) by pickly encoding/decoding it
+    :type value: any
+    :param value: the value you to be copied
+    :rtype: any
+    """
+    return decode(encode(value, unpicklable=True))
 
 
 class TapeRecorder(object):
@@ -386,6 +395,7 @@ class TapeRecorder(object):
         :param recording_parameters: Current recording parameters
         :type recording_parameters: RecordingParameters
         :param force_sample: Whether current recording sampling is forced
+
         :type force_sample: bool
         :return: Whether to sample current recording based on its class decoration and sampling calculations
         :rtype: bool
@@ -747,11 +757,12 @@ class TapeRecorder(object):
                 self.discard_recording()
                 return result
 
-            try:
-                recorded_result = copy(recorded_result)  # prevent changes in some fields of input to break recording.
-            except Exception as ex:
-                _logger.warning(u"recorded data couldn't be copied (type={} exception={})".format(
-                    type(recorded_result), repr(ex)))
+            if self._active_recording_parameters.copy_data_on_intercepion:
+                try:
+                    recorded_result = pickle_copy(recorded_result)
+                except Exception as ex:
+                    _logger.warning(u"recorded data couldn't be copied (type={} exception={})".format(
+                        type(recorded_result), repr(ex)))
 
             # Record result
             self._record_data(interception_key, {'value': recorded_result})
@@ -868,7 +879,8 @@ Output = namedtuple('Output', 'key value')
 
 
 class RecordingParameters(object):
-    def __init__(self, sampling_rate=1.0, ignore_enforced_sampling=False, skipped=False):
+    def __init__(self, sampling_rate=1.0, ignore_enforced_sampling=False,
+                 skipped=False, copy_data_on_intercepion=False):
         """
         :param sampling_rate: Optional sampling rate (between 0 and 1) to applied on recording. Default is 1
         :type sampling_rate: float
@@ -876,10 +888,14 @@ class RecordingParameters(object):
         :type ignore_enforced_sampling: bool
         :param skipped: This class should be skipped for recording
         :type skipped: bool
+        :param copy_data_on_intercepion: copy each intercepted
+               value while recording to prevent mutations, impacts performance
+        :type copy_data_on_intercepion: bool
         """
         self.sampling_rate = sampling_rate
         self.ignore_enforced_sampling = ignore_enforced_sampling
         self.skipped = skipped
+        self.copy_data_on_intercepion = copy_data_on_intercepion
 
 
 class Playback(object):

@@ -11,7 +11,7 @@ from playback.interception.input_interception import InputInterceptionDataHandle
 from time import sleep
 
 from playback.interception.output_interception import OutputInterceptionDataHandler
-from playback.tape_recorder import TapeRecorder, CapturedArg, RecordingParameters
+from playback.tape_recorder import TapeRecorder, CapturedArg, RecordingParameters, pickle_copy
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 import six
 from six.moves import range
@@ -1081,3 +1081,61 @@ class TestTapeRecorder(unittest.TestCase):
                                                       playback_function=lambda recording: Operation().execute())
         self._assert_playback_vs_recording(playback_result, result)
         wrapped.assert_called()
+
+    @patch('playback.tape_recorder.pickle_copy', side_effect=pickle_copy)
+    def test_record_and_playback_basic_operation_data_interception_copy_data(self, wrapped_encode):
+        @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
+        class Operation(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_value(self):
+                return self.seed
+
+        instance = Operation(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                playback_function=lambda recording: Operation().execute())
+        wrapped_encode.assert_called_with(5)
+        self._assert_playback_vs_recording(playback_result, result)
+
+    @patch('playback.tape_recorder.pickle_copy')
+    def test_record_and_playback_basic_operation_data_interception_copy_data_exception(self, wrapped_decode):
+
+        @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
+        class Operation(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_value(self):
+                return self.seed
+
+        def cannot(input):
+            raise Exception('cannot')
+
+        wrapped_decode.side_effect = cannot
+
+        instance = Operation(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                playback_function=lambda recording: Operation().execute())
+        wrapped_decode.assert_called()
+        self._assert_playback_vs_recording(playback_result, result)
