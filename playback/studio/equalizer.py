@@ -7,7 +7,14 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-EqualityStatus = Enum('EqualityStatus', 'Equal Fixed Different Failed')
+"""
+Equal               - The recorded and playback compared outputs are considered equal
+Fixed               - The playback output is considered as a fix to the matched errornous recorded output
+Different           - The recorded and playback compared outputs are considered different
+Failed              - The playback output is considered as a failure compared to the recorded output
+EqualizerFailure    - The framework have failed running the comparison
+"""
+EqualityStatus = Enum('EqualityStatus', 'Equal Fixed Different Failed EqualizerFailure')
 
 
 class ComparatorResult(object):
@@ -30,7 +37,8 @@ class ComparatorResult(object):
 
 
 class Comparison(object):
-    def __init__(self, comparator_result, expected, actual, expected_is_exception, actual_is_exception, playback):
+    def __init__(self, comparator_result, expected, actual, expected_is_exception, actual_is_exception, playback,
+                 recording_id):
         """
         :param comparator_result: Result of comparison between expected and actual
         :type comparator_result: ComparatorResult
@@ -44,6 +52,8 @@ class Comparison(object):
         :type actual_is_exception: bool
         :param playback: Play operation result
         :type playback: playback.tape_recorder.Playback
+        :param recording_id: Id of compared recording
+        :type recording_id: str
         """
         self.comparator_status = comparator_result
         self.expected = expected
@@ -51,6 +61,7 @@ class Comparison(object):
         self.expected_is_exception = expected_is_exception
         self.actual_is_exception = actual_is_exception
         self.playback = playback
+        self.recording_id = recording_id
 
     def __str__(self):
         result = self.comparator_status.equality_status.name
@@ -117,7 +128,6 @@ class Equalizer(object):
         :rtype: collections.Iterator[Comparison]
         """
         counter = Counter()
-        playback_failure = 0
         iteration = 0
         completed = False
         try:
@@ -141,7 +151,8 @@ class Equalizer(object):
                         playback_result,
                         expected_is_exception,
                         actual_is_exception,
-                        playback
+                        playback,
+                        recording_id
                     )
 
                     _logger.info(u'Recording {} Comparison result: {}'.format(recording_id,
@@ -151,12 +162,21 @@ class Equalizer(object):
 
                     if iteration % 10 == 0:
                         _logger.info(u'Iteration {} {}'.format(
-                            iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
+                            iteration, Equalizer._comparison_stats_repr(counter)))
 
                     yield comparison
                 except Exception as ex:  # pylint: disable=broad-except
-                    playback_failure += 1
                     _logger.info(u'Failed playing recording id {} - {}'.format(recording_id, ex))
+
+                    counter[EqualityStatus.EqualizerFailure] += 1
+                    yield Comparison(
+                        ComparatorResult(EqualityStatus.EqualizerFailure, message=str(ex)),
+                        None,
+                        None,
+                        False,
+                        False,
+                        None,
+                        recording_id)
 
             completed = True
 
@@ -166,7 +186,7 @@ class Equalizer(object):
             self._compare_results.close()
             log_prefix = u'Completed all' if completed else u'Error during playback, executed'
             _logger.info(u'{} {} iterations, {}'.format(
-                log_prefix, iteration, Equalizer._comparison_stats_repr(counter, playback_failure)))
+                log_prefix, iteration, Equalizer._comparison_stats_repr(counter)))
 
     def _play_and_compare_recording_within_worker(self, recording_id):
         """
@@ -236,7 +256,7 @@ class Equalizer(object):
                 except Exception as ex:  # pylint: disable=broad-except
                     logging.info(u'Failure during play and compare in playback process of id {} - {}'.format(
                         recording_id, ex))
-                    self._compare_results.put((False, repr(ex)))
+                    self._compare_results.put((False, str(ex)))
             except mp.queues.Empty:
                 # Every 0.05 second the process will get this as we poll with 0.05 second timeout
                 # (in order to listen to termination event)
@@ -268,18 +288,16 @@ class Equalizer(object):
         return comparator_result, playback, recorded_result_is_exception, playback_result_is_exception
 
     @staticmethod
-    def _comparison_stats_repr(counter, playback_failures):
+    def _comparison_stats_repr(counter):
         """
         :param counter:
         :type counter: collections.Counter
-        :param playback_failures:
-        :type playback_failures: int
         :return: Representation of comparison statistics
         :rtype: str
         """
-        return u'comparison stats: (equal - {}, fixed - {}, diff - {}, failed - {}) playback failures - {}'.format(
+        return u'comparison stats: (equal - {}, fixed - {}, diff - {}, failed - {}, equalizer failures - {}'.format(
             counter[EqualityStatus.Equal],
             counter[EqualityStatus.Fixed],
             counter[EqualityStatus.Different],
             counter[EqualityStatus.Failed],
-            playback_failures)
+            counter[EqualityStatus.EqualizerFailure])
