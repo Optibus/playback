@@ -113,6 +113,13 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
 
+        self.assertIsNotNone(comparison[0].recording_id)
+        self.assertEqual(comparison[0].playback.original_recording.id, comparison[0].recording_id)
+        self.assertIsNotNone(comparison[1].recording_id)
+        self.assertEqual(comparison[1].playback.original_recording.id, comparison[1].recording_id)
+        self.assertIsNotNone(comparison[2].recording_id)
+        self.assertEqual(comparison[2].playback.original_recording.id, comparison[2].recording_id)
+
         self.assertEqual(3, comparison[0].expected)
         self.assertEqual(4, comparison[1].expected)
         self.assertEqual(5, comparison[2].expected)
@@ -168,21 +175,19 @@ class TestEqualizer(unittest.TestCase):
             def player(recording_id):
                 return self.tape_recorder.play(recording_id, playback_function)
 
-            with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                              wraps=self.tape_cassette.iter_recording_ids):
-                start_date = datetime.utcnow() - timedelta(hours=1)
-                playable_recordings = find_matching_recording_ids(
-                    self.tape_recorder,
-                    category=Operation.__name__,
-                    lookup_properties=RecordingLookupProperties(start_date=start_date),
-                )
-                runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                                   comparator=exact_comparator, compare_execution_config=CompareExecutionConfig(
-                                       keep_results_in_comparison=True,
-                                       compare_in_dedicated_process=compare_in_dedicated_process
-                                   ))
+            start_date = datetime.utcnow() - timedelta(hours=1)
+            playable_recordings = find_matching_recording_ids(
+                self.tape_recorder,
+                category=Operation.__name__,
+                lookup_properties=RecordingLookupProperties(start_date=start_date),
+            )
+            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                               comparator=exact_comparator, compare_execution_config=CompareExecutionConfig(
+                                   keep_results_in_comparison=True,
+                                   compare_in_dedicated_process=compare_in_dedicated_process
+                               ))
 
-                comparison = list(runner.run_comparison())
+            comparison = list(runner.run_comparison())
 
             self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
             self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
@@ -244,33 +249,34 @@ class TestEqualizer(unittest.TestCase):
         def player(recording_id):
             return self.tape_recorder.play(recording_id, playback_function)
 
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            end_date = datetime.utcnow() + timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
-            )
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+        )
 
-            runner = Equalizer(playable_recordings, player, result_extractor=result_extractor,
-                               comparator=exact_comparator,
-                               compare_execution_config=CompareExecutionConfig(
-                                   keep_results_in_comparison=False,
-                                   compare_in_dedicated_process=compare_in_dedicated_process
-                               ))
+        runner = Equalizer(playable_recordings, player, result_extractor=result_extractor,
+                           comparator=exact_comparator,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=False,
+                               compare_in_dedicated_process=compare_in_dedicated_process
+                           ))
 
-            with patch.object(Equalizer, '_play_and_compare_recording',
-                              wraps=runner._play_and_compare_recording) as wrapped:
-                comparison = list(runner.run_comparison())
-            if compare_in_dedicated_process:
-                wrapped.assert_not_called()
-            else:
-                wrapped.assert_called()
+        with patch.object(Equalizer, '_play_and_compare_recording',
+                          wraps=runner._play_and_compare_recording) as wrapped:
+            comparison = list(runner.run_comparison())
+        if compare_in_dedicated_process:
+            wrapped.assert_not_called()
+        else:
+            wrapped.assert_called()
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-        self.assertEqual(EqualityStatus.Failed, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.EqualizerFailure, comparison[1].comparator_status.equality_status)
+        self.assertEqual('extract error', comparison[1].comparator_status.message)
+        self.assertIsNotNone(comparison[1].recording_id)
+        self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
 
         self.assertIsNone(comparison[0].expected)
         self.assertIsNone(comparison[0].actual)
@@ -369,25 +375,23 @@ class TestEqualizer(unittest.TestCase):
         def player(recording_id):
             return self.tape_recorder.play(recording_id, playback_function)
 
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            end_date = datetime.utcnow() + timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(
-                    start_date=start_date,
-                    end_date=end_date)
-            )
-            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                               comparator=exact_comparator_with_message,
-                               compare_execution_config=CompareExecutionConfig(
-                                   keep_results_in_comparison=True,
-                                   compare_in_dedicated_process=compare_in_dedicated_process
-                               ))
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                end_date=end_date)
+        )
+        runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                           comparator=exact_comparator_with_message,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=True,
+                               compare_in_dedicated_process=compare_in_dedicated_process
+                           ))
 
-            comparison = list(runner.run_comparison())
+        comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual('{status} - {status}'.format(
@@ -457,26 +461,24 @@ class TestEqualizer(unittest.TestCase):
                 EqualityStatus.Equal if recorded_result * multiplier == playback_result * multiplier
                 else EqualityStatus.Different, str(multiplier))
 
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            end_date = datetime.utcnow() + timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(
-                    start_date=start_date,
-                    end_date=end_date)
-            )
-            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                               comparator=exact_comparator_with_multiplier,
-                               comparison_data_extractor=comparison_data_extractor,
-                               compare_execution_config=CompareExecutionConfig(
-                                   keep_results_in_comparison=True,
-                                   compare_in_dedicated_process=compare_in_dedicated_process
-                               ))
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                end_date=end_date)
+        )
+        runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                           comparator=exact_comparator_with_multiplier,
+                           comparison_data_extractor=comparison_data_extractor,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=True,
+                               compare_in_dedicated_process=compare_in_dedicated_process
+                           ))
 
-            comparison = list(runner.run_comparison())
+        comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.Equal, comparison[1].comparator_status.equality_status)
@@ -509,34 +511,30 @@ class TestEqualizer(unittest.TestCase):
 
         random.seed(12)
         first_list = None
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(
-                    start_date=start_date,
-                    random_sample=True,
-                    limit=3)
-            )
-            first_list = list(playable_recordings)
-            self.assertEqual(len(first_list), 3)
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=True,
+                limit=3)
+        )
+        first_list = list(playable_recordings)
+        self.assertEqual(len(first_list), 3)
 
         random.seed(4)
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(
-                    start_date=start_date,
-                    random_sample=True,
-                    limit=3)
-            )
-            second_list = list(playable_recordings)
-            self.assertNotEqual(second_list, first_list)
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=True,
+                limit=3)
+        )
+        second_list = list(playable_recordings)
+        self.assertNotEqual(second_list, first_list)
 
     @parameterized.expand([("compare_in_dedicated_process", True),
                            ("playback_same_process", False),
@@ -615,29 +613,27 @@ class TestEqualizer(unittest.TestCase):
         def player(recording_id):
             return self.tape_recorder.play(recording_id, playback_function)
 
-        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
-                          wraps=self.tape_cassette.iter_recording_ids) as mock:
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            end_date = datetime.utcnow() + timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
-            )
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+        )
 
-            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                               comparator=exact_comparator,
-                               compare_execution_config=CompareExecutionConfig(
-                                   keep_results_in_comparison=True,
-                                   compare_in_dedicated_process=True,
-                                   compare_process_recycle_rate=2
-                               ))
+        runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                           comparator=exact_comparator,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=True,
+                               compare_in_dedicated_process=True,
+                               compare_process_recycle_rate=2
+                           ))
 
-            with patch.object(Equalizer, '_create_new_player_process',
-                              wraps=runner._create_new_player_process) as wrapped:
-                comparison = list(runner.run_comparison())
+        with patch.object(Equalizer, '_create_new_player_process',
+                          wraps=runner._create_new_player_process) as wrapped:
+            comparison = list(runner.run_comparison())
 
-            self.assertEqual(10, wrapped.call_count)
+        self.assertEqual(10, wrapped.call_count)
 
         self.assertEqual(20, len(comparison))
         for c in comparison:
