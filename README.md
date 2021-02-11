@@ -351,7 +351,7 @@ few commits, multiple pull requests are preferred unless there is a good logical
 same pull request.
 
 Please note that as of now this framework is compatible with both Python 2 and 3, hence any changes should
-keep that. We use the six frameworks to help keep this support.
+keep that. We use the ״six״ framework to help keep this support.
 
 To contribute, please review our [contributing policy](https://github.com/Optibus/playback/blob/main/CONTRIBUTING.md).
 
