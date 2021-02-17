@@ -42,6 +42,7 @@ setuptools.setup(
     ],
     extras_require={'dev': [
         'mock==2.0.0',
+        'rsa<=4.0; python_version < \'3\'',
         'moto==1.3.13',
         'pytest==4.6.9',
         'parameterized==0.7.0',
