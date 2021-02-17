@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from collections import Counter
+from collections import Counter, namedtuple
 
 from enum import Enum
 import logging
@@ -34,6 +34,16 @@ class ComparatorResult(object):
             return u'{}'.format(self.equality_status.name)
 
         return u'{} - {}'.format(self.equality_status.name, self.message)
+
+    @staticmethod
+    def failure_result(exception):
+        """
+        :param exception: Exception to wrap with failure result
+        :type exception: builtins.Exception
+        :return: Failure comparator result representing the given exception
+        :rtype: ComparatorResult
+        """
+        return ComparatorResult(EqualityStatus.EqualizerFailure, str(exception))
 
 
 class Comparison(object):
@@ -88,6 +98,11 @@ class CompareExecutionConfig(object):
         self.compare_process_recycle_rate = compare_process_recycle_rate
 
 
+PlayAndCompareResult = namedtuple(
+        'PlayAndCompareResult',
+        'comparator_result playback recorded_result_is_exception playback_result_is_exception')
+
+
 class Equalizer(object):
     def __init__(self, recording_ids, player, result_extractor, comparator, comparison_data_extractor=None,
                  compare_execution_config=None):
@@ -133,12 +148,13 @@ class Equalizer(object):
         try:
             for iteration, recording_id in enumerate(self.recording_ids, start=1):
                 try:
-                    comparator_result, playback, expected_is_exception, actual_is_exception = \
-                        self._play_and_compare_recording_within_worker(recording_id)
+                    play_and_compare_result = self._play_and_compare_recording_within_worker(recording_id)
+                    playback = play_and_compare_result.playback
 
                     # Since comparison was done in another process and result may not be serializable accross processes,
-                    # we have to re-extract here again if needed
-                    if self.compare_execution_config.keep_results_in_comparison:
+                    # we have to re-extract here again if needed, if playback is None it means we had an error too early
+                    # to be able to extract results
+                    if playback is not None and self.compare_execution_config.keep_results_in_comparison:
                         recorded_result = self.result_extractor(playback.recorded_outputs)
                         playback_result = self.result_extractor(playback.playback_outputs)
                     else:
@@ -146,11 +162,11 @@ class Equalizer(object):
                         playback_result = None
 
                     comparison = Comparison(
-                        comparator_result,
+                        play_and_compare_result.comparator_result,
                         recorded_result,
                         playback_result,
-                        expected_is_exception,
-                        actual_is_exception,
+                        play_and_compare_result.recorded_result_is_exception,
+                        play_and_compare_result.playback_result_is_exception,
                         playback,
                         recording_id
                     )
@@ -170,7 +186,7 @@ class Equalizer(object):
 
                     counter[EqualityStatus.EqualizerFailure] += 1
                     yield Comparison(
-                        ComparatorResult(EqualityStatus.EqualizerFailure, message=str(ex)),
+                        ComparatorResult.failure_result(ex),
                         None,
                         None,
                         False,
@@ -197,7 +213,7 @@ class Equalizer(object):
         :type recording_id: str
         :return: Comparison result, playback result, is recorded result an exception,
         is playback result an exception
-        :rtype: ComparatorResult, playback.tape_recorder.Playback, bool, bool
+        :rtype: PlayAndCompareResult
         """
         if not self.compare_execution_config.compare_in_dedicated_process:
             return self._play_and_compare_recording(recording_id)
@@ -269,23 +285,38 @@ class Equalizer(object):
         :type recording_id: str
         :return: Comparison result, playback result, is recorded result an exception,
         is playback result an exception
-        :rtype: ComparatorResult, playback.tape_recorder.Playback, bool, bool
+        :rtype: PlayAndCompareResult
         """
-        playback = self.player(recording_id)
+        playback = None
+        recorded_result_is_exception = None
+        playback_result_is_exception = None
 
-        recorded_result = self.result_extractor(playback.recorded_outputs)
-        playback_result = self.result_extractor(playback.playback_outputs)
+        try:
+            playback = self.player(recording_id)
 
-        comparison_data = {} if self.comparison_data_extractor is None else \
-            self.comparison_data_extractor(playback.original_recording)
+            recorded_result = self.result_extractor(playback.recorded_outputs)
+            playback_result = self.result_extractor(playback.playback_outputs)
 
-        comparator_result = self.comparator(recorded_result, playback_result, **comparison_data)
-        if not isinstance(comparator_result, ComparatorResult):
-            comparator_result = ComparatorResult(comparator_result)
+            recorded_result_is_exception = isinstance(recorded_result, Exception)
+            playback_result_is_exception = isinstance(playback_result, Exception)
 
-        recorded_result_is_exception = isinstance(recorded_result, Exception)
-        playback_result_is_exception = isinstance(playback_result, Exception)
-        return comparator_result, playback, recorded_result_is_exception, playback_result_is_exception
+            comparison_data = {} if self.comparison_data_extractor is None else \
+                self.comparison_data_extractor(playback.original_recording)
+
+            comparator_result = self.comparator(recorded_result, playback_result, **comparison_data)
+            if not isinstance(comparator_result, ComparatorResult):
+                comparator_result = ComparatorResult(comparator_result)
+
+            return PlayAndCompareResult(comparator_result,
+                                        playback,
+                                        recorded_result_is_exception,
+                                        playback_result_is_exception)
+
+        except Exception as ex:  # pylint: disable=broad-except
+            return PlayAndCompareResult(ComparatorResult.failure_result(ex),
+                                        playback,
+                                        recorded_result_is_exception,
+                                        playback_result_is_exception)
 
     @staticmethod
     def _comparison_stats_repr(counter):

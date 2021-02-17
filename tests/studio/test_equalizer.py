@@ -6,6 +6,7 @@ from contextlib2 import suppress
 from datetime import datetime, timedelta
 from mock import patch
 import random
+
 from parameterized import parameterized
 
 from playback.studio.recordings_lookup import find_matching_recording_ids, RecordingLookupProperties
@@ -208,7 +209,7 @@ class TestEqualizer(unittest.TestCase):
     @parameterized.expand([("compare_in_dedicated_process", True),
                            ("playback_same_process", False),
                            ])
-    def test_with_failure_comparison(self, name, compare_in_dedicated_process):
+    def test_with_failure_post_playback_comparison(self, name, compare_in_dedicated_process):
 
         class Operation(object):
             def __init__(self, value=None, multiply_input=1):
@@ -264,20 +265,137 @@ class TestEqualizer(unittest.TestCase):
                                compare_in_dedicated_process=compare_in_dedicated_process
                            ))
 
-        with patch.object(Equalizer, '_play_and_compare_recording',
-                          wraps=runner._play_and_compare_recording) as wrapped:
-            comparison = list(runner.run_comparison())
-        if compare_in_dedicated_process:
-            wrapped.assert_not_called()
-        else:
-            wrapped.assert_called()
+        comparison = list(runner.run_comparison())
 
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
         self.assertEqual(EqualityStatus.EqualizerFailure, comparison[1].comparator_status.equality_status)
         self.assertEqual('extract error', comparison[1].comparator_status.message)
         self.assertIsNotNone(comparison[1].recording_id)
+        self.assertIsNotNone(comparison[1].playback)
         self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
 
+        self.assertIsNone(comparison[0].expected)
+        self.assertIsNone(comparison[0].actual)
+
+    @parameterized.expand([("compare_in_dedicated_process", True),
+                           ("playback_same_process", False),
+                           ])
+    def test_with_failure_during_playback_comparison(self, name, compare_in_dedicated_process):
+
+        class Operation(object):
+            def __init__(self, value=None, multiply_input=1):
+                self._value = value
+                self.multiply_input = multiply_input
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input * self.multiply_input
+
+        Operation(3).execute()
+        Operation(4).execute()
+        Operation(5).execute()
+
+        playback_counter = [0]
+
+        def playback_function(recording):
+            playback_counter[0] += 1
+            if playback_counter[0] == 2:
+                raise Exception("playback error")
+                operation = Operation(multiply_input=2)
+            elif playback_counter[0] == 3:
+                operation = Operation(multiply_input=100)
+            else:
+                operation = Operation()
+            return operation.execute()
+
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
+
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+        )
+
+        runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                           comparator=exact_comparator,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=False,
+                               compare_in_dedicated_process=compare_in_dedicated_process
+                           ))
+
+        comparison = list(runner.run_comparison())
+
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.EqualizerFailure, comparison[1].comparator_status.equality_status)
+        self.assertEqual('playback error', comparison[1].comparator_status.message)
+        self.assertIsNotNone(comparison[1].recording_id)
+        self.assertIsNone(comparison[1].playback)
+        self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
+
+        self.assertIsNone(comparison[0].expected)
+        self.assertIsNone(comparison[0].actual)
+
+    @parameterized.expand([("compare_in_dedicated_process", True),
+                           ("playback_same_process", False),
+                           ])
+    def test_with_failure_during_play_and_compare_method_other_process(self, name, compare_in_dedicated_process):
+
+        class Operation(object):
+            def __init__(self, value=None, multiply_input=1):
+                self._value = value
+                self.multiply_input = multiply_input
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input * self.multiply_input
+
+        Operation(3).execute()
+
+        def playback_function(recording):
+            operation = Operation()
+            return operation.execute()
+
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
+
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+        )
+
+        def side_affect(*args, **kwargs):
+            raise Exception('total failure')
+
+        with patch('playback.studio.equalizer.Equalizer._play_and_compare_recording',
+                   side_affect):
+            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                               comparator=exact_comparator,
+                               compare_execution_config=CompareExecutionConfig(
+                                   keep_results_in_comparison=False,
+                                   compare_in_dedicated_process=compare_in_dedicated_process
+                               ))
+            comparison = list(runner.run_comparison())
+
+        self.assertEqual(EqualityStatus.EqualizerFailure, comparison[0].comparator_status.equality_status)
+        self.assertEqual('total failure', comparison[0].comparator_status.message)
+        self.assertIsNotNone(comparison[0].recording_id)
+        self.assertIsNone(comparison[0].playback)
         self.assertIsNone(comparison[0].expected)
         self.assertIsNone(comparison[0].actual)
 
