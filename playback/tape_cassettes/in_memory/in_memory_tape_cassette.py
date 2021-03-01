@@ -1,3 +1,4 @@
+# pylint: disable=duplicate-code
 import uuid
 from collections import OrderedDict
 from jsonpickle import encode, decode
@@ -8,7 +9,8 @@ from playback.tape_cassette import TapeCassette
 
 class InMemoryTapeCassette(TapeCassette):
     """
-    Implementation of TapeCassette that saves everything in memory
+    Implementation of TapeCassette that saves everything in memory, mainly for playing around and testing
+    and not meant for production use
     """
     def __init__(self):
         self._recordings = OrderedDict()

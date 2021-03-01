@@ -11,3 +11,16 @@ good-names=id,ex,f
 [DESIGN]
 max-args=8
 max-attributes=12
+[SIMILARITIES]
+
+# Minimum lines number of a similarity.
+min-similarity-lines=6
+
+# Ignore comments when computing similarities.
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities.
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities.
+ignore-imports=no
