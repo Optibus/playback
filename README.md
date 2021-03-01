@@ -30,6 +30,11 @@ The quality of the released code improves significantly by covering many edge ca
 # Installation
 `pip install playback-studio`
 
+# Examples
+There are two examples as part of this repo you can check out under the [examples](examples) directory:
+* [basic service operation](examples/basic_service_operation.py/) - a simple example for in memory operation
+* [Flask based service](examples/flask) - an end to end flask based example with persistent recording
+
 # Usage and examples - interception and replay
 ## Intercepting an operation
 In order to intercept an operation, you need to explicitly declare the recorded operation entry point by decorating it with

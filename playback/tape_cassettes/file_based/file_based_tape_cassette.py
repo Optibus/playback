@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import os
 import uuid
 import io

@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 import uuid
 from collections import OrderedDict
 from jsonpickle import encode, decode
