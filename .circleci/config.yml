@@ -17,7 +17,7 @@ jobs:
           command: |
             mkdir ./results
             pylint playback > ./results/pylint.xml
-            flake8 playback --max-line-length=120 --format junit-xml > ./results/flake8.xml
+            flake8 examples tests playback --max-line-length=120 --format junit-xml > ./results/flake8.xml
       - store_test_results:
           path: ./results
 
