@@ -1104,7 +1104,7 @@ class TestTapeRecorder(unittest.TestCase):
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
-                                                playback_function=lambda recording: Operation().execute())
+                                                  playback_function=lambda recording: Operation().execute())
         wrapped_encode.assert_called_with(5)
         self._assert_playback_vs_recording(playback_result, result)
 
@@ -1136,6 +1136,6 @@ class TestTapeRecorder(unittest.TestCase):
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,
-                                                playback_function=lambda recording: Operation().execute())
+                                                  playback_function=lambda recording: Operation().execute())
         wrapped_decode.assert_called()
         self._assert_playback_vs_recording(playback_result, result)

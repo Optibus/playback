@@ -96,7 +96,7 @@ class TestEqualizer(unittest.TestCase):
             )
 
             runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                               comparator=exact_comparator, 
+                               comparator=exact_comparator,
                                compare_execution_config=CompareExecutionConfig(
                                    keep_results_in_comparison=True,
                                    compare_in_dedicated_process=compare_in_dedicated_process
@@ -138,73 +138,75 @@ class TestEqualizer(unittest.TestCase):
                            ])
     def test_with_exception_comparison(self, name, compare_in_dedicated_process):
 
-            class Operation(object):
-                def __init__(self, value=None, raise_error=None):
-                    self._value = value
-                    self.raise_error = raise_error
+        class Operation(object):
+            def __init__(self, value=None, raise_error=None):
+                self._value = value
+                self.raise_error = raise_error
 
-                @property
-                @self.tape_recorder.intercept_input('input')
-                def input(self):
-                    return self._value
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
 
-                @self.tape_recorder.operation()
-                def execute(self, value=None):
-                    if self.raise_error:
-                        raise Exception("error")
-                    if value is not None:
-                        return value
-                    return self.input
+            @self.tape_recorder.operation()
+            def execute(self, value=None):
+                if self.raise_error:
+                    raise Exception("error")
+                if value is not None:
+                    return value
+                return self.input
 
-            Operation(3).execute()
-            Operation(4).execute()
-            with suppress(Exception):
-                Operation(raise_error=True).execute()
+        Operation(3).execute()
+        Operation(4).execute()
+        with suppress(Exception):
+            Operation(raise_error=True).execute()
 
-            playback_counter = [0]
+        playback_counter = [0]
 
-            def playback_function(recording):
-                playback_counter[0] += 1
-                if playback_counter[0] == 2:
-                    operation = Operation(raise_error=True)
-                elif playback_counter[0] == 3:
-                    return Operation().execute(5)
-                else:
-                    operation = Operation()
-                return operation.execute()
+        def playback_function(recording):
+            playback_counter[0] += 1
+            if playback_counter[0] == 2:
+                operation = Operation(raise_error=True)
+            elif playback_counter[0] == 3:
+                return Operation().execute(5)
+            else:
+                operation = Operation()
+            return operation.execute()
 
-            def player(recording_id):
-                return self.tape_recorder.play(recording_id, playback_function)
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
 
-            start_date = datetime.utcnow() - timedelta(hours=1)
-            playable_recordings = find_matching_recording_ids(
-                self.tape_recorder,
-                category=Operation.__name__,
-                lookup_properties=RecordingLookupProperties(start_date=start_date),
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date),
+        )
+        runner = Equalizer(
+            playable_recordings, player, result_extractor=return_value_result_extractor,
+            comparator=exact_comparator, compare_execution_config=CompareExecutionConfig(
+                keep_results_in_comparison=True,
+                compare_in_dedicated_process=compare_in_dedicated_process
             )
-            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
-                               comparator=exact_comparator, compare_execution_config=CompareExecutionConfig(
-                                   keep_results_in_comparison=True,
-                                   compare_in_dedicated_process=compare_in_dedicated_process
-                               ))
+        )
 
-            comparison = list(runner.run_comparison())
+        comparison = list(runner.run_comparison())
 
-            self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
-            self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
-            self.assertEqual(EqualityStatus.Different, comparison[2].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Different, comparison[2].comparator_status.equality_status)
 
-            self.assertEqual(3, comparison[0].expected)
-            self.assertEqual(4, comparison[1].expected)
-            self.assertIsInstance(comparison[2].expected, Exception)
-            self.assertTrue(comparison[1].actual_is_exception)
-            self.assertFalse(comparison[1].expected_is_exception)
+        self.assertEqual(3, comparison[0].expected)
+        self.assertEqual(4, comparison[1].expected)
+        self.assertIsInstance(comparison[2].expected, Exception)
+        self.assertTrue(comparison[1].actual_is_exception)
+        self.assertFalse(comparison[1].expected_is_exception)
 
-            self.assertEqual(3, comparison[0].actual)
-            self.assertIsInstance(comparison[1].actual, Exception)
-            self.assertEqual(5, comparison[2].actual)
-            self.assertFalse(comparison[2].actual_is_exception)
-            self.assertTrue(comparison[2].expected_is_exception)
+        self.assertEqual(3, comparison[0].actual)
+        self.assertIsInstance(comparison[1].actual, Exception)
+        self.assertEqual(5, comparison[2].actual)
+        self.assertFalse(comparison[2].actual_is_exception)
+        self.assertTrue(comparison[2].expected_is_exception)
 
     @parameterized.expand([("compare_in_dedicated_process", True),
                            ("playback_same_process", False),
