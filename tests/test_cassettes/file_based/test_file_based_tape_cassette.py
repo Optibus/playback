@@ -99,6 +99,23 @@ class TestFileBasedTapeCassette(unittest.TestCase):
                                                                  end_date=datetime.utcnow() + timedelta(hours=1),
                                                                  metadata={'property': False})))
 
+    def test_fetch_recordings_metadata_by_category_date_and_metadata(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': True})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': False})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        assert_items_equal(self, [{'property': False}],
+                           list(self.cassette.iter_recordings_metadata(
+                               category='test_operation1',
+                               start_date=datetime.utcnow() - timedelta(hours=1),
+                               end_date=datetime.utcnow() + timedelta(hours=1),
+                               metadata={'property': False})))
+
     def test_fetch_recording_ids_by_category_and_limit(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording1)
