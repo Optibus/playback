@@ -97,13 +97,13 @@ class S3TapeCassette(TapeCassette):
         """
         metadata_key = self.METADATA_KEY.format(key_prefix=self.key_prefix, id=recording_id)
         try:
-            _logger.info(u'Fetching metadata of recording using key {}'.format(metadata_key))
+            _logger.debug(u'Fetching metadata of recording using key {}'.format(metadata_key))
             serialized_data = self._s3_facade.get_string(metadata_key)
         except Exception as ex:
             if 'NoSuchKey' in type(ex).__name__:
                 raise NoSuchRecording(recording_id)
             raise
-        _logger.info(u'Decoding metadata of recording of key {}'.format(metadata_key))
+        _logger.debug(u'Decoding metadata of recording of key {}'.format(metadata_key))
         return decode(serialized_data)
 
     def create_new_recording(self, category):
