@@ -53,8 +53,6 @@ def temp_env(var_name, new_value):
     os.environ[var_name] = str(new_value)
     try:
         yield
-    except Exception as e:
-        raise
     finally:
         if variable_defined:
             os.environ[var_name] = prev_value
