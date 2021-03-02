@@ -86,6 +86,26 @@ class S3TapeCassette(TapeCassette):
         _logger.info(u'Returning recording of key {}'.format(full_key))
         return MemoryRecording(recording_id, recording_data=full_data, recording_metadata=metadata)
 
+    def get_recording_metadata(self, recording_id):
+        """
+        Get recording's metadata stored with the given id
+        :param recording_id: If of recording to fetch
+        :type recording_id: basestring
+        :return: Recording of the given id
+        :rtype: dict
+        :raises: playback.exceptions.NoSuchRecording
+        """
+        metadata_key = self.METADATA_KEY.format(key_prefix=self.key_prefix, id=recording_id)
+        try:
+            _logger.info(u'Fetching metadata of recording using key {}'.format(metadata_key))
+            serialized_data = self._s3_facade.get_string(metadata_key)
+        except Exception as ex:
+            if 'NoSuchKey' in type(ex).__name__:
+                raise NoSuchRecording(recording_id)
+            raise
+        _logger.info(u'Decoding metadata of recording of key {}'.format(metadata_key))
+        return decode(serialized_data)
+
     def create_new_recording(self, category):
         """
         :param category: A category to classify the recording in (e.g operation class) (serializable)

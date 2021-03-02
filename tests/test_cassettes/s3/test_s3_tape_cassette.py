@@ -58,6 +58,28 @@ class TestS3TapeCassette(unittest.TestCase):
         assert_items_equal(self, ['key1', 'key2'], recording.get_all_keys())
         assert_items_equal(self, recording.get_all_keys(), fetched_recording.get_all_keys())
 
+    def test_get_recording_and_get_recording_metadata_non_existing(self):
+        with self.assertRaises(NoSuchRecording):
+            self.cassette.get_recording('non existing id')
+
+        with self.assertRaises(NoSuchRecording):
+            self.cassette.get_recording_metadata('non existing id')
+
+    def test_get_recording_and_get_recording_metadata_other_exception(self):
+
+        def side_affect(*args, **kwargs):
+            raise ValueError('some error')
+
+        with patch('playback.tape_cassettes.s3.s3_basic_facade.S3BasicFacade.get_string',
+                   side_affect):
+            with self.assertRaises(ValueError) as cm:
+                self.cassette.get_recording('some id')
+            self.assertEqual('some error', str(cm.exception))
+
+            with self.assertRaises(ValueError) as cm:
+                self.cassette.get_recording_metadata('some id')
+            self.assertEqual('some error', str(cm.exception))
+
     def test_create_save_and_fetch_recording_with_metadata(self):
         recording = self.cassette.create_new_recording('test_operation')
         metadata = {'key1': 5, 'key2': {'obj_key1': 2, 'obj_key2': "bla"}}
@@ -68,6 +90,9 @@ class TestS3TapeCassette(unittest.TestCase):
 
         self.assertEqual(metadata, recording.get_metadata())
         self.assertEqual(recording.get_metadata(), fetched_recording.get_metadata())
+
+        fetched_recording_metadata = self.cassette.get_recording_metadata(recording.id)
+        self.assertEqual(metadata, fetched_recording_metadata)
 
     def test_close_transient_true(self):
         prefix = 'tests_' + uuid.uuid1().hex
@@ -170,6 +195,23 @@ class TestS3TapeCassette(unittest.TestCase):
                                                                  end_date=datetime.utcnow() + timedelta(hours=1),
                                                                  metadata={'property': False})))
 
+    def test_fetch_recordings_metadata_by_category_date_and_metadata(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': True})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': False})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        assert_items_equal(self, [{'property': False}],
+                           list(self.cassette.iter_recordings_metadata(
+                               category='test_operation1',
+                               start_date=datetime.utcnow() - timedelta(hours=1),
+                               end_date=datetime.utcnow() + timedelta(hours=1),
+                               metadata={'property': False})))
+
     def test_fetch_recording_ids_with_wildcard_matching_metadata(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
         recording1.add_metadata({'property': 'val11'})
@@ -187,6 +229,24 @@ class TestS3TapeCassette(unittest.TestCase):
         assert_items_equal(self, [recording1.id, recording2.id],
                            list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                  metadata={'property': 'val*'})))
+
+    def test_fetch_recordings_metadata_with_wildcard_matching_metadata(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': 'val11'})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': 'val21'})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation2')
+        self.cassette.save_recording(recording3)
+
+        assert_items_equal(self, [{'property': 'val21'}],
+                           list(self.cassette.iter_recordings_metadata(category='test_operation1',
+                                                                       metadata={'property': 'val2*'})))
+
+        assert_items_equal(self, [{'property': 'val11'}, {'property': 'val21'}],
+                           list(self.cassette.iter_recordings_metadata(category='test_operation1',
+                                                                       metadata={'property': 'val*'})))
 
     def test_fetch_recording_ids_with_wildcard_matching_metadata_value_not_set(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
