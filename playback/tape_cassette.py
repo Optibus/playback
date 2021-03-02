@@ -26,6 +26,17 @@ class TapeCassette(object):
         """
         pass
 
+    def get_recording_metadata(self, recording_id):
+        """
+        Get recording's metadata stored with the given id
+        :param recording_id: If of recording to fetch
+        :type recording_id: basestring
+        :return: Recording of the given id
+        :rtype: dict
+        :raises: playback.exceptions.NoSuchRecording
+        """
+        return self.get_recording(recording_id).get_metadata()
+
     @abstractmethod
     def create_new_recording(self, category):
         """
@@ -82,6 +93,26 @@ class TapeCassette(object):
         :rtype: collections.Iterator[str]
         """
         pass
+
+    def iter_recordings_metadata(self, category, start_date=None, end_date=None, metadata=None, limit=None):
+        """
+        Creates an iterator of recordings metadata matching the given search parameters
+        :param category: Recordings category
+        :type category: str
+        :param start_date: Optional recording start date (need to be given in utc time)
+        :type start_date: datetime.datetime
+        :param end_date: Optional recording end date (need to be given in utc time)
+        :type end_date: datetime.datetime
+        :param metadata: Optional metadata values to filter by
+        :type metadata: dict
+        :param limit: Optional limit on number of ids to fetch
+        :type limit: int
+        :return: Iterator of recording ids matching the given parameters
+        :rtype: collections.Iterator[dict]
+        """
+        for recording_id in self.iter_recording_ids(
+                category, start_date, end_date, metadata, limit):
+            yield self.get_recording_metadata(recording_id)
 
     @abstractmethod
     def extract_recording_category(self, recording_id):
