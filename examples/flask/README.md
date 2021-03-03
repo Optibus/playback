@@ -107,8 +107,8 @@ ContentLengthEndpoint/1c5a84597a9811eb89dcaae9fe8631bd: Equal - recorded: 511644
 
 ```
 
-Then you can go to the code and delibiratly change it to return different result, for example
-you go to `ContentLengthEndpoint` and change the return length value to be +1 and then the playback output would look like this:
+Then you can edit the code and delibiratly change it to return different result, for example
+you can modify `ContentLengthEndpoint` and change its calculate length logic to return length + 1 which will create a differece between the recorded value and the produced output during playback. This will cause the playback output to look like this:
 ```
 Category ContentFirstCharsEndpoint
 ContentFirstCharsEndpoint/25620aa87a9811eb9f40aae9fe8631bd: Equal - recorded: <!doctype , played_back: <!doctype 
@@ -119,4 +119,4 @@ ContentLengthEndpoint/2825f4cc7a9811eb9322aae9fe8631bd: Different - recorded: 15
 ContentLengthEndpoint/1c5a84597a9811eb89dcaae9fe8631bd: Different - recorded: 511644, played_back: 511645
 ```
 
-This can demonstrate how a regression or a change would look like.
+This can demonstrate how a regression or a change of behaviour would look like.
