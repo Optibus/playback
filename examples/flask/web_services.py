@@ -1,18 +1,8 @@
-import os
-
 import six
 from flask import request
 from flask_restplus import Resource
 
-from playback.tape_cassettes.file_based.file_based_tape_cassette import FileBasedTapeCassette
-from playback.tape_recorder import TapeRecorder
-
-# For demonstration purpose, persist file in underline recordings dir
-recordings_path = os.path.dirname(os.path.realpath(__file__)) + '/recordings'
-
-tape_cassette = FileBasedTapeCassette(recordings_path)
-tape_recorder = TapeRecorder(tape_cassette)
-tape_recorder.enable_recording()
+from examples.flask.playback_context import tape_recorder
 
 
 class ContentBasedService(Resource):

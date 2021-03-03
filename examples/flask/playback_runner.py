@@ -1,4 +1,4 @@
-from examples.flask.web_services import tape_recorder
+from examples.flask.playback_context import tape_recorder, init_playback_mode
 from playback.studio.equalizer import ComparatorResult, EqualityStatus
 from playback.studio.equalizer_tuning import EqualizerTuner, EqualizerTuning
 from playback.studio.studio import PlaybackStudio
@@ -37,6 +37,9 @@ class ContentBasedEqualizerTune(EqualizerTuner):
         Create a tuning with the needed plugins to rerun the operation and compare the results
         """
         return EqualizerTuning(self.playback_function, self.result_extractor, self.comparator)
+
+
+init_playback_mode()
 
 
 studio = PlaybackStudio(categories=['ContentLengthEndpoint', 'ContentFirstCharsEndpoint'],
