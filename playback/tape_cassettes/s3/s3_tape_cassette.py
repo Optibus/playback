@@ -243,7 +243,10 @@ class S3TapeCassette(TapeCassette):
                 return True
             content_filter = content_filter_func
 
-        if start_date and end_date:
+        # to improve performance when looking for recordings in s3, the date is added to the folder
+        # and when a start date is given we can look for specific folders until today (or end_time)
+        if start_date:
+            end_date = end_date or datetime.utcnow()
             days = [(start_date + timedelta(days=i)) for i in range((end_date - start_date).days + 1)]
             id_prefixes = ['{}/{}/'.format(category, day.strftime('%Y%m%d')) for day in days]
         else:
