@@ -5,6 +5,7 @@ from zlib import compress, decompress
 import logging
 import uuid
 from fnmatch import fnmatch
+from datetime import datetime, timedelta
 import six
 from jsonpickle import encode, decode
 from parse import compile  # pylint: disable=redefined-builtin
@@ -23,7 +24,7 @@ class S3TapeCassette(TapeCassette):
 
     FULL_KEY = 'tape_recorder_recordings/{key_prefix}full/{id}'
     METADATA_KEY = 'tape_recorder_recordings/{key_prefix}metadata/{id}'
-    RECORDING_ID = '{category}/{id}'
+    RECORDING_ID = '{category}/{day}/{id}'
 
     def __init__(self, bucket, key_prefix='', region=None, transient=False, read_only=True,
                  infrequent_access_kb_threshold=None, sampling_calculator=None):
@@ -115,7 +116,7 @@ class S3TapeCassette(TapeCassette):
         """
         self._assert_not_read_only()
 
-        _id = self.RECORDING_ID.format(category=category, id=uuid.uuid1().hex)
+        _id = self.RECORDING_ID.format(category=category, day=datetime.today().strftime('%Y%m%d'), id=uuid.uuid1().hex)
         logging.info(u'Creating a new recording with id {}'.format(_id))
         return MemoryRecording(_id)
 
@@ -242,18 +243,27 @@ class S3TapeCassette(TapeCassette):
                 return True
             content_filter = content_filter_func
 
-        for key in self._s3_facade.iter_keys(
-                prefix=self.METADATA_KEY.format(key_prefix=self.key_prefix, id='{}/'.format(category)),
-                start_date=start_date,
-                end_date=end_date,
-                content_filter=content_filter,
-                limit=limit):
-            result = self._metadata_key_parser.parse(key)
-            if result is None:
-                continue
-            recording_id = result.named['id']
-            _logger.info(u'Found filtered recording id {}'.format(recording_id))
-            yield recording_id
+        if start_date and end_date:
+            days = [(start_date + timedelta(days=i)) for i in range((end_date - start_date).days + 1)]
+            id_prefixes = ['{}/{}/'.format(category, day.strftime('%Y%m%d')) for day in days]
+        else:
+            id_prefixes = ['{}/'.format(category)]
+
+        for id_prefix in id_prefixes:
+            for key in self._s3_facade.iter_keys(
+                    prefix=self.METADATA_KEY.format(
+                        key_prefix=self.key_prefix, id=id_prefix
+                    ),
+                    start_date=start_date,
+                    end_date=end_date,
+                    content_filter=content_filter,
+                    limit=limit):
+                result = self._metadata_key_parser.parse(key)
+                if result is None:
+                    continue
+                recording_id = result.named['id']
+                _logger.info(u'Found filtered recording id {}'.format(recording_id))
+                yield recording_id
 
     def extract_recording_category(self, recording_id):
         """
