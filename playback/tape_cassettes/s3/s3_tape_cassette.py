@@ -262,8 +262,6 @@ class S3TapeCassette(TapeCassette):
                     content_filter=content_filter,
                     limit=limit):
                 result = self._metadata_key_parser.parse(key)
-                if result is None:
-                    continue
                 recording_id = result.named['id']
                 _logger.info(u'Found filtered recording id {}'.format(recording_id))
                 yield recording_id
