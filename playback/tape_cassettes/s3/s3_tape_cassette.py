@@ -25,6 +25,7 @@ class S3TapeCassette(TapeCassette):
     FULL_KEY = 'tape_recorder_recordings/{key_prefix}full/{id}'
     METADATA_KEY = 'tape_recorder_recordings/{key_prefix}metadata/{id}'
     RECORDING_ID = '{category}/{day}/{id}'
+    DAY_FORMAT = '%Y%m%d'
 
     def __init__(self, bucket, key_prefix='', region=None, transient=False, read_only=True,
                  infrequent_access_kb_threshold=None, sampling_calculator=None):
@@ -116,7 +117,11 @@ class S3TapeCassette(TapeCassette):
         """
         self._assert_not_read_only()
 
-        _id = self.RECORDING_ID.format(category=category, day=datetime.today().strftime('%Y%m%d'), id=uuid.uuid1().hex)
+        _id = self.RECORDING_ID.format(
+            category=category,
+            day=datetime.today().strftime(self.DAY_FORMAT),
+            id=uuid.uuid1().hex
+        )
         logging.info(u'Creating a new recording with id {}'.format(_id))
         return MemoryRecording(_id)
 
@@ -248,7 +253,7 @@ class S3TapeCassette(TapeCassette):
         if start_date:
             end_date = end_date or datetime.utcnow()
             days = [(start_date + timedelta(days=i)) for i in range((end_date - start_date).days + 1)]
-            id_prefixes = ['{}/{}/'.format(category, day.strftime('%Y%m%d')) for day in days]
+            id_prefixes = ['{}/{}/'.format(category, day.strftime(self.DAY_FORMAT)) for day in days]
             start_date = None
             end_date = None
         else:
