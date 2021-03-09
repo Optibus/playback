@@ -254,8 +254,6 @@ class S3TapeCassette(TapeCassette):
             end_date = end_date or datetime.utcnow()
             days = [(start_date + timedelta(days=i)) for i in range((end_date - start_date).days + 1)]
             id_prefixes = ['{}/{}/'.format(category, day.strftime(self.DAY_FORMAT)) for day in days]
-            start_date = None
-            end_date = None
         else:
             id_prefixes = ['{}/'.format(category)]
 
