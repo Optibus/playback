@@ -1,5 +1,5 @@
 # playback [![CircleCI](https://circleci.com/gh/Optibus/playback.svg?style=shield)](https://circleci.com/gh/Optibus/playback) [![codecov](https://codecov.io/gh/Optibus/playback/branch/main/graph/badge.svg?token=CA8OMGPFQT)](https://codecov.io/gh/Optibus/playback)
-A Python decorator-based framework that lets you "record" and replay operations as they are executed.
+A Python decorator-based framework that lets you "record" and "replay" operations as they are executed.
 
 The framework intercepts all inputs and outputs throughout the operation, which can be used later to replay the exact operation in a controlled isolated
 sandbox, as well as to compare the output of the recorded operation vs the replayed operation.
