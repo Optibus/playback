@@ -1,14 +1,14 @@
 # playback [![CircleCI](https://circleci.com/gh/Optibus/playback.svg?style=shield)](https://circleci.com/gh/Optibus/playback) [![codecov](https://codecov.io/gh/Optibus/playback/branch/main/graph/badge.svg?token=CA8OMGPFQT)](https://codecov.io/gh/Optibus/playback)
-A Python decorator-based framework that lets you "record" and "replay" operations as they are executed.
 
-Main usages
-* Run production traffic on new code version of the service to detect regressions
+A Python decorator-based framework that lets you "record" and "replay" operations (e.g. API requests, workers consuming jobs from queues).
+
+## Main uses
+
+* Regression testing - replay recorded production traffic on modified code before pushing it
 * Debug production issues locally
 * Access many "real data" scenarios to test/validate new features/behaviours
 
-The framework intercepts all decorated inputs and outputs throughout the recorded operation, which are used later to replay the exact operation in a controlled isolated
-sandbox, as well as to compare the output of the recorded operation vs the replayed operation.
-
+The framework intercepts all decorated inputs and outputs throughout the recorded operation, which are used later to replay the exact operation in a controlled isolated sandbox, as well as to compare the output of the recorded operation vs the replayed operation.
 
 ## Background
 The motivation for this framework was to be able to test new code changes on actual data while in production, when the
