@@ -11,7 +11,7 @@ A Python decorator-based framework that lets you "record" and "replay" operation
 The framework intercepts all decorated inputs and outputs throughout the recorded operation, which are used later to replay the exact operation in a controlled isolated sandbox, as well as to compare the output of the recorded operation vs the replayed operation.
 
 ## Background
-The motivation for this framework was to be able to test new code changes on actual data while in production, when the
+The motivation for this framework was to be able to test new code changes on actual data from production while doing it not in production, when the
 alternative of canary deployment is not a viable option.
 Some examples when this might happen include:
 * When detecting a regression is based on intimate knowledge of the service output
