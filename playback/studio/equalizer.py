@@ -1,4 +1,6 @@
 import multiprocessing as mp
+import os
+import signal
 from collections import Counter, namedtuple
 
 from enum import Enum
@@ -82,7 +84,7 @@ class Comparison(object):
 
 class CompareExecutionConfig(object):
     def __init__(self, keep_results_in_comparison=False, compare_in_dedicated_process=False,
-                 compare_process_recycle_rate=5):
+                 compare_process_recycle_rate=5, compare_process_timeout=10 * 60):
         """
         :param keep_results_in_comparison: Whether to keep results in the comparison result object
         :type keep_results_in_comparison: bool
@@ -92,10 +94,13 @@ class CompareExecutionConfig(object):
         :param compare_process_recycle_rate: If comparing in a dedicated process, specified after how many comparison
         should that process be recycled
         :type compare_process_recycle_rate: int
+        :param compare_process_timeout: Time in seconds to wait for compare process to end before aborting it
+        :type compare_process_timeout: float
         """
         self.keep_results_in_comparison = keep_results_in_comparison
         self.compare_in_dedicated_process = compare_in_dedicated_process
         self.compare_process_recycle_rate = compare_process_recycle_rate
+        self.compare_process_timeout = compare_process_timeout
 
 
 PlayAndCompareResult = namedtuple(
@@ -222,12 +227,36 @@ class Equalizer(object):
 
         # Queue the task for the playback process and wait for its result
         self._compare_tasks.put(recording_id)
-        succeeded, result = self._compare_results.get(True)
+        try:
+            succeeded, result = self._compare_results.get(True, self.compare_execution_config.compare_process_timeout)
+        except mp.queues.Empty:
+            self._handle_compare_execution_timeout()
 
         if not succeeded:
             raise Exception(result)
 
         return result
+
+    def _handle_compare_execution_timeout(self):
+        """
+        Handle the case that we had a timeout during comparison, killing the process if it is still alive
+        """
+        _logger.warning('Waiting for comparison result timed out')
+        if self._compare_process.is_alive():
+            try:
+                self._kill_compare_process()
+            except OSError as ex:
+                # Don't fail when could not kill
+                _logger.warning(u'Error while killing worker, {}'.format(str(ex)))
+        self._compare_process = None
+        raise Exception("timeout while running recording playback and comparison")
+
+    def _kill_compare_process(self):
+        """
+        Kills the compare process
+        :raise exceptions.OSError
+        """
+        os.kill(self._compare_process.pid, signal.SIGKILL)
 
     def _create_or_recycle_player_process_if_needed(self):
         """
@@ -236,7 +265,8 @@ class Equalizer(object):
         (2) The age of the process (number of playbacks it ran) exceeds the recycle rate
         """
         # Process too old, recycle
-        if self._compare_process_age >= self.compare_execution_config.compare_process_recycle_rate:
+        if self._compare_process is not None and \
+                self._compare_process_age >= self.compare_execution_config.compare_process_recycle_rate:
             # Signal process to terminate and wait for it to do so
             self._terminate_process.set()
             self._compare_process.join()
