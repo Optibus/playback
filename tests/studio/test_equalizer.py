@@ -1,6 +1,7 @@
 # p3ready
 from __future__ import absolute_import
 import unittest
+from time import sleep, time
 
 from contextlib2 import suppress
 from datetime import datetime, timedelta
@@ -756,5 +757,68 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(10, wrapped.call_count)
 
         self.assertEqual(20, len(comparison))
+        for c in comparison:
+            self.assertEqual(EqualityStatus.Equal, c.comparator_status.equality_status)
+
+    def test_equalizer_process_timeout(self):
+        class Operation(object):
+            def __init__(self, value=None, playback=False):
+                self._value = value
+                self._playback = playback
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                res = self.input
+                if res == 2 and self._playback:
+                    sleep(30)
+                return res
+
+        for i in range(10):
+            Operation(i).execute()
+
+        def playback_function(recording):
+            return Operation(playback=True).execute()
+
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
+
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        end_date = datetime.utcnow() + timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date),
+        )
+
+        runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                           comparator=exact_comparator,
+                           compare_execution_config=CompareExecutionConfig(
+                               keep_results_in_comparison=True,
+                               compare_in_dedicated_process=True,
+                               compare_process_timeout=1,
+                           ))
+
+        original_kill = runner._kill_compare_process
+
+        def side_affect(self):
+            original_kill()
+            # To have code coverage of OSError being raised
+            raise OSError('bla')
+
+        start_time = time()
+        with patch('playback.studio.equalizer.Equalizer._kill_compare_process',
+                   side_affect):
+            comparison = list(runner.run_comparison())
+        duration = time() - start_time
+
+        self.assertLessEqual(duration, 5)
+        self.assertEqual(EqualityStatus.EqualizerFailure, comparison[2].comparator_status.equality_status)
+        self.assertIn('timeout', comparison[2].comparator_status.message.lower())
+        del comparison[2]
         for c in comparison:
             self.assertEqual(EqualityStatus.Equal, c.comparator_status.equality_status)
