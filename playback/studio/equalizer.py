@@ -2,6 +2,7 @@ import multiprocessing as mp
 import os
 import signal
 from collections import Counter, namedtuple
+from time import time
 
 from enum import Enum
 import logging
@@ -227,13 +228,24 @@ class Equalizer(object):
 
         # Queue the task for the playback process and wait for its result
         self._compare_tasks.put(recording_id)
-        try:
-            succeeded, result = self._compare_results.get(True, self.compare_execution_config.compare_process_timeout)
-        except mp.queues.Empty:
-            self._handle_compare_execution_timeout()
+        start_time = time()
+        timed_out = True
+        while time() - start_time <= self.compare_execution_config.compare_process_timeout:
+            try:
+                succeeded, result = self._compare_results.get(True, 1)
+                timed_out = False
 
-        if not succeeded:
-            raise Exception(result)
+                if not succeeded:
+                    raise Exception(result)
+
+                break
+            except mp.queues.Empty:
+                if not self._compare_process.is_alive():
+                    self._compare_process = None
+                    raise Exception("playback process have died")
+
+        if timed_out:
+            self._handle_compare_execution_timeout()
 
         return result
 
