@@ -1,4 +1,4 @@
-# playback [![CircleCI](https://circleci.com/gh/Optibus/playback.svg?style=shield)](https://circleci.com/gh/Optibus/playback) [![codecov](https://codecov.io/gh/Optibus/playback/branch/main/graph/badge.svg?token=CA8OMGPFQT)](https://codecov.io/gh/Optibus/playback)
+# playback [![CircleCI](https://circleci.com/gh/Optibus/playback.svg?branch=main&style=shield)](https://circleci.com/gh/Optibus/playback) [![codecov](https://codecov.io/gh/Optibus/playback/branch/main/graph/badge.svg?branch=main&token=CA8OMGPFQT)](https://codecov.io/gh/Optibus/playback)
 
 A Python decorator-based framework that lets you "record" and "replay" operations (e.g. API requests, workers consuming jobs from queues).
 
