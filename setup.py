@@ -50,7 +50,7 @@ setuptools.setup(
         'Flask==1.1.2',
         'flask-restplus==0.13.0',
         'pylint==2.6.0; python_version > "3.0"',
-        'pylint-junit==0.3.3; python_version > "3.0"',
+        'pylint-junit==0.3.2; python_version > "3.0"',
         'flake8==3.8.4; python_version > "3.0"',
         'flake8-formatter-junit-xml==0.0.6; python_version > "3.0"',
         'pytest-cov==2.10.1; python_version > "3.0"'
