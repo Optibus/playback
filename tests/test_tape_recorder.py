@@ -1139,3 +1139,38 @@ class TestTapeRecorder(unittest.TestCase):
                                                   playback_function=lambda recording: Operation().execute())
         wrapped_decode.assert_called()
         self._assert_playback_vs_recording(playback_result, result)
+
+    def test_intercept_input_activate_original_method_on_missing(self):
+        class OperationOld(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            def get_value(self):
+                return self.seed
+
+        class OperationNew(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input', run_intercepted_when_missing=True)
+            def get_value(self):
+                return self.seed
+
+        instance = OperationOld(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: OperationNew(5).execute())
+        self._assert_playback_vs_recording(playback_result, result)

@@ -117,7 +117,7 @@ the operation.
 
 ### `intercept_input` decorator
 ```python
-def intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None)
+def intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None, run_intercepted_when_missing=True)
 ```
 Decorates a function that acts as an input to the operation. The result of the function is the recorded input, and the
 combined passed arguments and alias are used as the key that uniquely identifies the input. Upon playback, an invocation to
@@ -132,6 +132,8 @@ lookup key. If no recorded value is found, a `RecordingKeyError` will be raised.
   pickle serialization is not enough. This needs to be an implementation of `InputInterceptionDataHandler` class
 * `capture_args` - If a list is given, it will annotate which arg indices and/or names should be captured as part of
   the intercepted key (invocation identification). If None, all args are captured
+* `run_intercepted_when_missing` - If no matching content is found on recording during playback, run the original intercepted 
+  method. This is useful when you want to use existing recording to play a code flow where this interception didn't exist
 
 When intercepting a static method, `static_intercept_input` should be used.
 
