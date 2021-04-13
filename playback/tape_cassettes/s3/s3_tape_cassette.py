@@ -1,4 +1,6 @@
 from __future__ import absolute_import
+
+import random
 from copy import copy
 from random import Random
 from zlib import compress, decompress
@@ -213,6 +215,56 @@ class S3TapeCassette(TapeCassette):
 
         return self._random.random() <= ratio
 
+    def create_id_prefix_iterators(self, id_prefixes, start_date=None, end_date=None, content_filter=None, limit=None):
+        """
+        Creates a list of iterators for every day in case of using dates or for category otherwise.
+        :param id_prefixes: list of prefixes to use
+        :type id_prefixes: list of basestring
+        :param start_date: Optional recording start date (need to be given in utc time)
+        :type start_date: datetime.datetime
+        :param end_date: Optional recording end date (need to be given in utc time)
+        :type end_date: datetime.datetime
+        :param content_filter: Optional limit on number of ids to fetch
+        :type content_filter: function
+        :param limit: Optional filter function to use
+        :type limit: int
+        :return: list of Iterator of keys matching the given parameters
+        :rtype: list of collections.Iterator[basestring]
+        """
+        return [self._s3_facade.iter_keys(
+            prefix=self.METADATA_KEY.format(
+                key_prefix=self.key_prefix, id=id_prefix
+            ),
+            start_date=start_date,
+            end_date=end_date,
+            content_filter=content_filter,
+            limit=copy(limit)) for id_prefix in id_prefixes]
+
+    @staticmethod
+    def _create_content_filter_func(metadata):
+        """
+        Create a filter function which filters on the metadata values
+        :param metadata: metadata values to filter by
+        :type metadata: dict
+        :return: the filter function
+        :rtype: function
+        """
+        def content_filter_func(recording_str):
+            recording_metadata = decode(recording_str)
+            for k, v in metadata.items():  # pylint: disable=invalid-name
+                recorded_value = recording_metadata.get(k)
+                if recorded_value is None and v is not None:
+                    return False
+
+                if isinstance(v, str):
+                    if not fnmatch(recorded_value, v):
+                        return False
+                elif recorded_value != v:
+                    return False
+
+            return True
+        return content_filter_func
+
     def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
         """
         Creates an iterator of keys matching the given parameters
@@ -229,24 +281,7 @@ class S3TapeCassette(TapeCassette):
         :return: Iterator of keys matching the given parameters
         :rtype: collections.Iterator[basestring]
         """
-        content_filter = None
-        if metadata:
-
-            def content_filter_func(recording_str):
-                recording_metadata = decode(recording_str)
-                for k, v in metadata.items():  # pylint: disable=invalid-name
-                    recorded_value = recording_metadata.get(k)
-                    if recorded_value is None and v is not None:
-                        return False
-
-                    if isinstance(v, str):
-                        if not fnmatch(recorded_value, v):
-                            return False
-                    elif recorded_value != v:
-                        return False
-
-                return True
-            content_filter = content_filter_func
+        content_filter = self._create_content_filter_func(metadata) if metadata else None
 
         # to improve performance when looking for recordings in s3, the date is added to the folder
         # and when a start date is given we can look for specific folders until today (or end_time)
@@ -257,19 +292,19 @@ class S3TapeCassette(TapeCassette):
         else:
             id_prefixes = ['{}/'.format(category)]
 
-        for id_prefix in id_prefixes:
-            for key in self._s3_facade.iter_keys(
-                    prefix=self.METADATA_KEY.format(
-                        key_prefix=self.key_prefix, id=id_prefix
-                    ),
-                    start_date=start_date,
-                    end_date=end_date,
-                    content_filter=content_filter,
-                    limit=limit):
+        id_prefix_iterators = self.create_id_prefix_iterators(id_prefixes, start_date, end_date, content_filter, limit)
+        count = 0
+        while count != limit and id_prefix_iterators:
+            random_day_iterator = random.choice(id_prefix_iterators)
+            key = next(random_day_iterator, None)
+            if key:
                 result = self._metadata_key_parser.parse(key)
                 recording_id = result.named['id']
                 _logger.info(u'Found filtered recording id {}'.format(recording_id))
                 yield recording_id
+                count += 1
+            else:
+                id_prefix_iterators.remove(random_day_iterator)
 
     def extract_recording_category(self, recording_id):
         """

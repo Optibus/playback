@@ -1,10 +1,12 @@
 # p3ready
 from __future__ import absolute_import
+
 import unittest
 import uuid
 from datetime import datetime, timedelta
 from mock import patch
 import boto3
+from mock.mock import Mock
 from moto import mock_s3
 from playback.exceptions import NoSuchRecording
 from playback.recording import Recording
@@ -275,6 +277,17 @@ class TestS3TapeCassette(unittest.TestCase):
         self.cassette.save_recording(recording3)
 
         self.assertEqual(2, len(list(self.cassette.iter_recording_ids(category='test_operation1', limit=2))))
+
+    def test_fetch_recording_ids_by_limit_overall(self):
+        yesterday = Mock(wraps=datetime.today)
+        yesterday.return_value = datetime.today()-timedelta(days=1)
+        with patch('datetime.today', yesterday, create=True):
+            recording1 = self.cassette.create_new_recording('test_operation1')
+            self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording2)
+        self.assertEqual(1, len(list(self.cassette.iter_recording_ids(
+            category='test_operation1', limit=1, start_date=datetime.utcnow() - timedelta(days=7)))))
 
     def test_big_recording_storage_type(self):
         prefix = 'tests_' + uuid.uuid1().hex
