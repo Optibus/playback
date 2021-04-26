@@ -1030,6 +1030,51 @@ class TestTapeRecorder(unittest.TestCase):
         self.assertIn('output_function', playback_result.playback_outputs[0].key)
         self.assertIn('output_new_function', playback_result.playback_outputs[1].key)
 
+    def test_record_and_playback_basic_operation_new_output_added_post_recording_with_default_return_values(self):
+        class OperationOld(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.output(5)
+
+            @self.tape_recorder.intercept_output('output_function')
+            def output(self, value):
+                return value
+
+        class OperationNew(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                value = self.output(5)
+                val1, val2 = self.output_new(value)
+                return val1 + val2
+
+            @self.tape_recorder.intercept_output('output_function')
+            def output(self, value):
+                return value
+
+            @self.tape_recorder.intercept_output('output_new_function', fail_on_no_recorded_result=False,
+                                                 default_result_when_not_recorded=(2, 4))
+            def output_new(self, value):
+                return value, value * 2
+
+        instance = OperationOld()
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: OperationNew().execute())
+
+        self.assertEqual({'args': [5], 'kwargs': {}}, playback_result.playback_outputs[0].value)
+        self.assertEqual({'args': [5], 'kwargs': {}}, playback_result.playback_outputs[1].value)
+        self.assertNotEqual(playback_result.playback_outputs[0].key, playback_result.playback_outputs[1].key)
+        self.assertIn('output_function', playback_result.playback_outputs[0].key)
+        self.assertIn('output_new_function', playback_result.playback_outputs[1].key)
+        operation_output = next(po for po in playback_result.playback_outputs
+                                if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
+        self.assertEqual(6, operation_output.value['args'][0])
+
     def test_current_recording_id(self):
         tape_recorder = self.tape_recorder
 
