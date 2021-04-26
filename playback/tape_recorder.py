@@ -509,7 +509,8 @@ class TapeRecorder(object):
         return self._intercept_input(alias, alias_params_resolver, data_handler, capture_args,
                                      run_intercepted_when_missing, static_function=False)
 
-    def static_intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True):
+    def static_intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
+                                default_result_when_not_recorded=None):
         """
         Decorates a static function that that acts as an output of the operation, the arguments are recorded as the
         output and the result of the function is captured
@@ -525,12 +526,17 @@ class TapeRecorder(object):
         interception while we want to be able to playback old recordings and the return value of the output is not
         actually used.
         :type fail_on_no_recorded_result: bool
+        :param default_result_when_not_recorded: Which result to return if there is no recording of a result, for this
+        to take affect 'fail_on_no_recorded_result' must be set to False
+        :type default_result_when_not_recorded: tuple
         :return: Decorated function
         :rtype: function
         """
-        return self._intercept_output(alias, data_handler, fail_on_no_recorded_result, static_function=True)
+        return self._intercept_output(alias, data_handler, fail_on_no_recorded_result, default_result_when_not_recorded,
+                                      static_function=True)
 
-    def intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True):
+    def intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
+                         default_result_when_not_recorded=None):
         """
         Decorates a function that that acts as an output of the operation, the arguments are recorded as the output and
         the result of the function is captured
@@ -547,12 +553,17 @@ class TapeRecorder(object):
         interception while we want to be able to playback old recordings and the return value of the output is not
         actually used. Defaults to True
         :type fail_on_no_recorded_result: bool
+        :param default_result_when_not_recorded: Which result to return if there is no recording of a result, for this
+        to take affect 'fail_on_no_recorded_result' must be set to False
+        :type default_result_when_not_recorded: tuple
         :return: Decorated function
         :rtype: function
         """
-        return self._intercept_output(alias, data_handler, fail_on_no_recorded_result, static_function=False)
+        return self._intercept_output(alias, data_handler, fail_on_no_recorded_result, default_result_when_not_recorded,
+                                      static_function=False)
 
-    def _intercept_output(self, alias, data_handler, fail_on_no_recorded_result, static_function):
+    def _intercept_output(self, alias, data_handler, fail_on_no_recorded_result, default_result_when_not_recorded,
+                          static_function):
         """
         Decorates a function that that acts as an output of the operation, the arguments are recorded as the output and
         the result of the function is captured
@@ -569,6 +580,9 @@ class TapeRecorder(object):
         interception while we want to be able to playback old recordings and the return value of the output is not
         actually used.
         :type fail_on_no_recorded_result: bool
+        :param default_result_when_not_recorded: Which result to return if there is no recording of a result, for this
+        to take affect 'fail_on_no_recorded_result' must be set to False
+        :type default_result_when_not_recorded: tuple
         :param static_function: Is this a static function
         :type static_function: bool
         :return: Decorated function
@@ -602,7 +616,7 @@ class TapeRecorder(object):
                     except RecordingKeyError:
                         if fail_on_no_recorded_result:
                             raise
-                        return None
+                        return default_result_when_not_recorded
 
                 # Record the output result so it can be returned in playback mode
                 return self._execute_func_and_record_interception(func, interception_key, args, kwargs)
