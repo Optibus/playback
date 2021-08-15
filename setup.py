@@ -37,13 +37,14 @@ setuptools.setup(
         'parse==1.6.6',
         'jsonpickle==0.9.3',
         'six==1.15.0',
-        'contextlib2==0.6.0'
+        'contextlib2==0.6.0',
+        'decorator==4.4.2'
 
     ],
     extras_require={'dev': [
         'mock==2.0.0',
         'rsa<=4.0; python_version < \'3\'',
-        'moto==1.3.13',
+        'moto==1.3.17',
         'pytest==4.6.9',
         'parameterized==0.7.0',
         'Werkzeug==0.16.1; python_version < \'3\'',
