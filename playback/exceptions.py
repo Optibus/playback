@@ -35,4 +35,4 @@ class NoSuchRecording(TapeRecorderException):
         :param recording_id: Missing recording id
         :type recording_id: basestring
         """
-        super(NoSuchRecording, self).__init__(recording_id.encode('utf-8'))
+        super(NoSuchRecording, self).__init__(('No such recording: ' + recording_id).encode('utf-8'))
