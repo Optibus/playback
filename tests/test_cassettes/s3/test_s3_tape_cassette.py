@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from mock import patch
 import boto3
-from mock import Mock
+from mock.mock import Mock
 from moto import mock_s3
 from playback.exceptions import NoSuchRecording
 from playback.recording import Recording
