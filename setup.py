@@ -47,7 +47,7 @@ setuptools.setup(
         'moto==1.3.13',
         'pytest==4.6.9',
         'parameterized==0.7.0',
-        'Werkzeug==0.16.1; python_version < \'3\'',
+        'Werkzeug==0.16.1',
         'Flask==1.1.2',
         'flask-restplus==0.13.0',
         'pylint==2.6.0; python_version > "3.0"',
