@@ -6,9 +6,9 @@ code base
 
 # Running the example
 You will need the relevant flask requirements, you can install the dev requirements which contains
-the relevant flask (`pip install -e .[dev]`)
+the relevant flask (while being in the root project directory run `pip install -e .[dev]`)
 To start the flask server run 
-```python main.py```
+```python main.py``` in the flask example directory
 
 Then you can run different post such as: 
 
@@ -16,7 +16,7 @@ http://localhost:5000/content_length
 with example body:
 ```javascript
 {
-    "url": "www.google.com"
+    "url": "https://www.google.com"
 }
 ```
 
@@ -24,7 +24,7 @@ http://localhost:5000/content_first_chars
 with example body:
 ```javascript
 {
-    "url": "www.google.com",
+    "url": "https://www.google.com",
     "length": 10
 }
 ```
