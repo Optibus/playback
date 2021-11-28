@@ -259,6 +259,8 @@ class S3TapeCassette(TapeCassette):
                 if isinstance(v, str):
                     if not fnmatch(recorded_value, v):
                         return False
+                elif isinstance(v, list):
+                    return any(fnmatch(recorded_value, value) for value in v)
                 elif recorded_value != v:
                     return False
 

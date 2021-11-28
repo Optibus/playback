@@ -268,6 +268,30 @@ class TestS3TapeCassette(unittest.TestCase):
                            list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                  metadata={'property': 'val*'})))
 
+    def test_fetch_recording_ids_with_matching_metadata_value_not_set(self):
+        recording1 = self.cassette.create_new_recording('test_operation1')
+        recording1.add_metadata({'property': 'val11'})
+        self.cassette.save_recording(recording1)
+        recording2 = self.cassette.create_new_recording('test_operation1')
+        recording2.add_metadata({'property': 'val21'})
+        self.cassette.save_recording(recording2)
+        recording3 = self.cassette.create_new_recording('test_operation1')
+        recording3.add_metadata({'property': 'test'})
+        self.cassette.save_recording(recording3)
+        recording4 = self.cassette.create_new_recording('test_operation1')
+        self.cassette.save_recording(recording4)
+
+        assert_items_equal(self, [recording2.id, recording3.id],
+                           list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                 metadata={'property': ['val2*', 'test']})))
+
+        assert_items_equal(self, [recording1.id, recording2.id, recording3.id],
+                           list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                 metadata={'property': ['val*', 't*']})))
+        assert_items_equal(self, [],
+                           list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                 metadata={'property': ['try1', 'try2']})))
+
     def test_fetch_recording_ids_by_category_and_limit(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording1)
