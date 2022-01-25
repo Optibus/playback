@@ -38,10 +38,12 @@ class TapeRecorder(object):
     OPERATION_CLASS = '_tape_recorder_operation_class'
     EXCEPTION_IN_OPERATION = '_tape_recorder_exception_in_operation'
 
-    def __init__(self, tape_cassette):
+    def __init__(self, tape_cassette, random_seed=None):
         """
         :param tape_cassette: The storage driver to hold the recording in
         :type tape_cassette: playback.tape_cassette.TapeCassette
+        :param random_seed: random seed for the sampling rate calculation
+        :type random_seed: int
         """
         self.tape_cassette = tape_cassette
         self.recording_enabled = False
@@ -51,7 +53,7 @@ class TapeRecorder(object):
         self._playback_outputs = []
         self._invoke_counter = Counter()
         self._classes_recording_params = {}
-        self._random = Random(110613)
+        self._random = Random(random_seed)
         self._force_sample = False
         self._currently_in_interception = False
 
