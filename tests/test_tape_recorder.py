@@ -21,7 +21,7 @@ class TestTapeRecorder(unittest.TestCase):
 
     def setUp(self):
         self.tape_cassette = InMemoryTapeCassette()
-        self.tape_recorder = TapeRecorder(self.tape_cassette)
+        self.tape_recorder = TapeRecorder(self.tape_cassette, random_seed=110613)
         self.tape_recorder.enable_recording()
 
     def test_record_and_playback_basic_operation_no_parameters(self):
