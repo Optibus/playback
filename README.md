@@ -2,6 +2,8 @@
 
 A Python decorator-based framework that lets you "record" and "replay" operations (e.g. API requests, workers consuming jobs from queues).
 
+a java-script / type script [version](https://github.com/Optibus/playback-ts) is in the works
+
 ## Main uses
 
 * Regression testing - replay recorded production traffic on modified code before pushing it
