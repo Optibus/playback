@@ -1,10 +1,18 @@
 import multiprocessing as mp
 import os
 import signal
+import sys
+import traceback
 from collections import Counter, namedtuple
 from time import time
 
 from enum import Enum
+
+try:
+    from StringIO import StringIO  # SKIP_FUTURIZE for Python 2
+except ImportError:
+    from io import StringIO  # for Python 3
+
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -39,13 +47,18 @@ class ComparatorResult(object):
         return u'{} - {}'.format(self.equality_status.name, self.message)
 
     @staticmethod
-    def failure_result(exception):
+    def failure_result(recording_id, exception):
         """
+        :param recording_id: Id of the recording that is being played
+        :type recording_id: str
         :param exception: Exception to wrap with failure result
         :type exception: builtins.Exception
         :return: Failure comparator result representing the given exception
         :rtype: ComparatorResult
         """
+        _logger.warning(u'Failed playing recording id {} - {}'.format(recording_id, exception))
+        trace_str = Equalizer.get_exception_stack_trace()
+        _logger.warning(trace_str)
         return ComparatorResult(EqualityStatus.EqualizerFailure, str(exception))
 
 
@@ -188,11 +201,9 @@ class Equalizer(object):
 
                     yield comparison
                 except Exception as ex:  # pylint: disable=broad-except
-                    _logger.info(u'Failed playing recording id {} - {}'.format(recording_id, ex))
-
                     counter[EqualityStatus.EqualizerFailure] += 1
                     yield Comparison(
-                        ComparatorResult.failure_result(ex),
+                        ComparatorResult.failure_result(recording_id, ex),
                         None,
                         None,
                         False,
@@ -355,7 +366,7 @@ class Equalizer(object):
                                         playback_result_is_exception)
 
         except Exception as ex:  # pylint: disable=broad-except
-            return PlayAndCompareResult(ComparatorResult.failure_result(ex),
+            return PlayAndCompareResult(ComparatorResult.failure_result(recording_id, ex),
                                         playback,
                                         recorded_result_is_exception,
                                         playback_result_is_exception)
@@ -374,3 +385,14 @@ class Equalizer(object):
             counter[EqualityStatus.Different],
             counter[EqualityStatus.Failed],
             counter[EqualityStatus.EqualizerFailure])
+
+    @staticmethod
+    def get_exception_stack_trace():
+        """
+        :return: Gets the stack trace as a string of exception raised in current context
+        :rtype: str
+        """
+        __, __, trace_back = sys.exc_info()
+        st_file = StringIO()
+        traceback.print_tb(trace_back, file=st_file)
+        return st_file.getvalue()
