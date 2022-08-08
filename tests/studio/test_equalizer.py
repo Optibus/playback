@@ -130,6 +130,94 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(8, comparison[1].actual)
         self.assertEqual(500, comparison[2].actual)
 
+        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata={
+            TapeRecorder.INCOMPLETE_RECORDING: [False, None]})
+        self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
+        self.assertGreaterEqual(comparison[0].playback.recorded_duration, 0)
+
+    @parameterized.expand([("compare_in_dedicated_process", True),
+                           ("playback_same_process", False),
+                           ])
+    def test_equal_comparison_without_skip_incomplete_recordings(self, name, compare_in_dedicated_process):
+
+        class Operation(object):
+            def __init__(self, value=None, multiply_input=1):
+                self._value = value
+                self.multiply_input = multiply_input
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input * self.multiply_input
+
+        Operation(3).execute()
+        Operation(4).execute()
+        Operation(5).execute()
+
+        playback_counter = [0]
+
+        def playback_function(recording):
+            playback_counter[0] += 1
+            if playback_counter[0] == 2:
+                operation = Operation(multiply_input=2)
+            elif playback_counter[0] == 3:
+                operation = Operation(multiply_input=100)
+            else:
+                operation = Operation()
+            return operation.execute()
+
+        def player(recording_id):
+            return self.tape_recorder.play(recording_id, playback_function)
+
+        with patch.object(InMemoryTapeCassette, 'iter_recording_ids',
+                          wraps=self.tape_cassette.iter_recording_ids) as mock:
+            start_date = datetime.utcnow() - timedelta(hours=1)
+            end_date = datetime.utcnow() + timedelta(hours=1)
+            playable_recordings = find_matching_recording_ids(
+                self.tape_recorder,
+                category=Operation.__name__,
+                lookup_properties=RecordingLookupProperties(start_date=start_date, end_date=end_date,
+                                                            skip_incomplete=False),
+            )
+
+            runner = Equalizer(playable_recordings, player, result_extractor=return_value_result_extractor,
+                               comparator=exact_comparator,
+                               compare_execution_config=CompareExecutionConfig(
+                                   keep_results_in_comparison=True,
+                                   compare_in_dedicated_process=compare_in_dedicated_process
+                               ))
+
+            with patch.object(Equalizer, '_play_and_compare_recording',
+                              wraps=runner._play_and_compare_recording) as wrapped:
+                comparison = list(runner.run_comparison())
+            if compare_in_dedicated_process:
+                wrapped.assert_not_called()
+            else:
+                wrapped.assert_called()
+
+        self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Different, comparison[1].comparator_status.equality_status)
+        self.assertEqual(EqualityStatus.Failed, comparison[2].comparator_status.equality_status)
+
+        self.assertIsNotNone(comparison[0].recording_id)
+        self.assertEqual(comparison[0].playback.original_recording.id, comparison[0].recording_id)
+        self.assertIsNotNone(comparison[1].recording_id)
+        self.assertEqual(comparison[1].playback.original_recording.id, comparison[1].recording_id)
+        self.assertIsNotNone(comparison[2].recording_id)
+        self.assertEqual(comparison[2].playback.original_recording.id, comparison[2].recording_id)
+
+        self.assertEqual(3, comparison[0].expected)
+        self.assertEqual(4, comparison[1].expected)
+        self.assertEqual(5, comparison[2].expected)
+
+        self.assertEqual(3, comparison[0].actual)
+        self.assertEqual(8, comparison[1].actual)
+        self.assertEqual(500, comparison[2].actual)
+
         mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata=None)
         self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
         self.assertGreaterEqual(comparison[0].playback.recorded_duration, 0)
@@ -454,7 +542,7 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
 
         mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=None,
-                                limit=1, metadata={'meta': 'b'})
+                                limit=1, metadata={'meta': 'b', TapeRecorder.INCOMPLETE_RECORDING: [False, None]})
         self.assertEqual(4, comparison[0].expected)
         self.assertEqual(4, comparison[0].actual)
 
