@@ -1,8 +1,10 @@
 from random import shuffle
 
+from playback.tape_recorder import TapeRecorder
+
 
 class RecordingLookupProperties(object):
-    def __init__(self, start_date, end_date=None, metadata=None, limit=None, random_sample=False):
+    def __init__(self, start_date, end_date=None, metadata=None, limit=None, random_sample=False, skip_incomplete=True):
         """
         :param start_date: Earliest date of recording
         :type start_date: datetime.datetime
@@ -14,12 +16,14 @@ class RecordingLookupProperties(object):
         :type limit: int
         :param random_sample: True/False collect using random.shuffle (use random.seed to change selection)
         :type random_sample: boolean
+        :param skip_incomplete: True/False to skip recordings at incomplete state (TapeRecorder.INCOMPLETE_RECORDING)
         """
         self.start_date = start_date
         self.end_date = end_date
         self.metadata = metadata
         self.limit = limit
         self.random_sample = random_sample
+        self.skip_incomplete = skip_incomplete
 
 
 def find_matching_recording_ids(tape_recorder, category, lookup_properties):
@@ -33,9 +37,14 @@ def find_matching_recording_ids(tape_recorder, category, lookup_properties):
     :return: Iterator of recording ids based on lookup parameters
     :rtype: collections.Iterator[str]
     """
+    metadata = lookup_properties.metadata
+    if lookup_properties.skip_incomplete:
+        metadata = metadata or {}
+        # We also add None to support recordings that were created before adding the INCOMPLETE_RECORDING metadata
+        metadata[TapeRecorder.INCOMPLETE_RECORDING] = [False, None]
     recording_ids = tape_recorder.tape_cassette.iter_recording_ids(
             category, start_date=lookup_properties.start_date, end_date=lookup_properties.end_date,
-            metadata=lookup_properties.metadata,
+            metadata=metadata,
             limit=(None if lookup_properties.random_sample else lookup_properties.limit))
 
     if lookup_properties.random_sample:
