@@ -184,8 +184,8 @@ class TestTapeRecorder(unittest.TestCase):
         recording = self.tape_cassette.get_recording(recording_id)
         # pickle encode decode doesn't reconstruct actuall class if this is an inner class
         operation_decoded = decode(encode(Operation, unpicklable=False))
-        self.assertDictContainsSubset({'type': operation_decoded, TapeRecorder.OPERATION_CLASS: operation_decoded},
-                                      recording.get_metadata())
+        self.assertLessEqual({'type': operation_decoded, TapeRecorder.OPERATION_CLASS: operation_decoded}.items(),
+                             recording.get_metadata().items())
         playback_result = self.tape_recorder.play(recording_id,
                                                   playback_function=lambda recording: Operation().execute())
         self._assert_playback_vs_recording(playback_result, result)
@@ -287,14 +287,16 @@ class TestTapeRecorder(unittest.TestCase):
         recording = self.tape_cassette.get_recording(recording_id)
         # pickle encode decode doesn't reconstruct actuall class if this is an inner class
         operation_decoded = decode(encode(Operation, unpicklable=False))
-        self.assertDictContainsSubset({TapeRecorder.OPERATION_CLASS: operation_decoded}, recording.get_metadata())
+        self.assertLessEqual({TapeRecorder.OPERATION_CLASS: operation_decoded}.items(),
+                             recording.get_metadata().items())
 
         self.assertEqual(5, instance.class_execute())
 
         recording_id = self.tape_cassette.get_last_recording_id()
         recording = self.tape_cassette.get_recording(recording_id)
         # Inner classes are not unpicklable back to class upon decode
-        self.assertDictContainsSubset({TapeRecorder.OPERATION_CLASS: operation_decoded}, recording.get_metadata())
+        self.assertLessEqual({TapeRecorder.OPERATION_CLASS: operation_decoded}.items(),
+                             recording.get_metadata().items())
 
     def test_drop_recording_direct_api_call(self):
         local_tape_recorder = self.tape_recorder
@@ -514,8 +516,8 @@ class TestTapeRecorder(unittest.TestCase):
         self.assertEqual(len(playback_result.recorded_outputs), len(playback_result.playback_outputs))
         self.assertGreater(playback_result.playback_duration, 0)
         self.assertGreater(playback_result.recorded_duration, 0)
-        self.assertDictContainsSubset({TapeRecorder.EXCEPTION_IN_OPERATION: True},
-                                      playback_result.original_recording.get_metadata())
+        self.assertLessEqual({TapeRecorder.EXCEPTION_IN_OPERATION: True}.items(),
+                             playback_result.original_recording.get_metadata().items())
 
     def test_record_and_playback_basic_operation_no_parameters_raise_unserializable_error(self):
 
@@ -544,8 +546,8 @@ class TestTapeRecorder(unittest.TestCase):
         self.assertEqual(len(playback_result.recorded_outputs), len(playback_result.playback_outputs))
         self.assertGreater(playback_result.playback_duration, 0)
         self.assertGreater(playback_result.recorded_duration, 0)
-        self.assertDictContainsSubset({TapeRecorder.EXCEPTION_IN_OPERATION: True},
-                                      playback_result.original_recording.get_metadata())
+        self.assertLessEqual({TapeRecorder.EXCEPTION_IN_OPERATION: True}.items(),
+                             playback_result.original_recording.get_metadata().items())
 
     def test_record_and_playback_basic_operation_data_interception_no_arguments_raise_exception(self):
         class Operation(object):
