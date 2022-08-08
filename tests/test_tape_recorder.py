@@ -1221,3 +1221,41 @@ class TestTapeRecorder(unittest.TestCase):
         playback_result = self.tape_recorder.play(recording_id,
                                                   playback_function=lambda recording: OperationNew(5).execute())
         self._assert_playback_vs_recording(playback_result, result)
+
+    def test_raise_base_exception_mark_broken_recording(self):
+
+        class UncaughtException(BaseException):
+            pass
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                raise UncaughtException("Error")
+
+        instance = Operation()
+        try:
+            instance.execute()
+        except UncaughtException as e:
+            self.assertEqual("Error", str(e.args[0]))
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        recording = self.tape_cassette.get_recording(recording_id)
+        self.assertFalse(bool(TapeRecorder._extract_recorded_output(recording)))
+        self.assertLessEqual({TapeRecorder.INCOMPLETE_RECORDING: True}.items(), recording.get_metadata().items())
+
+    def test_completed_operation_mark_as_not_broken_recording(self):
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return 5
+
+        instance = Operation()
+        instance.execute()
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        recording = self.tape_cassette.get_recording(recording_id)
+        self.assertTrue(bool(TapeRecorder._extract_recorded_output(recording)))
+        self.assertLessEqual({TapeRecorder.INCOMPLETE_RECORDING: False}.items(), recording.get_metadata().items())

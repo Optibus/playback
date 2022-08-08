@@ -37,6 +37,7 @@ class TapeRecorder(object):
     OPERATION_OUTPUT_ALIAS = '_tape_recorder_operation'
     OPERATION_CLASS = '_tape_recorder_operation_class'
     EXCEPTION_IN_OPERATION = '_tape_recorder_exception_in_operation'
+    INCOMPLETE_RECORDING = '_tape_recorder_incomplete_recording'
 
     def __init__(self, tape_cassette, random_seed=None):
         """
@@ -153,6 +154,12 @@ class TapeRecorder(object):
         """
         metadata[TapeRecorder.DURATION] = duration
         metadata[TapeRecorder.RECORDED_AT] = str(datetime.utcnow())
+        outputs = TapeRecorder._extract_recorded_output(recording)
+        # Check if the operation has completed by checking if we have operation output recorded, if not it means
+        # the operation method didn't complete and regular exception was not caught
+        # (this will happen when BaseException is raised such as KeyboardInterrupt, SystemExit)
+        incomplete = not any(TapeRecorder.OPERATION_OUTPUT_ALIAS in o.key for o in outputs)
+        metadata[TapeRecorder.INCOMPLETE_RECORDING] = incomplete
         if post_operation_metadata_extractor:
             try:
                 metadata.update(post_operation_metadata_extractor())
