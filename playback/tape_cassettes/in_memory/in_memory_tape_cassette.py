@@ -58,7 +58,7 @@ class InMemoryTapeCassette(TapeCassette):
 
             if metadata:
                 # Filter based on metadata if provided
-                if not all(metadata[key] == recording.get_metadata()[key] for key in metadata.keys()):
+                if not TapeCassette.match_against_recorded_metadata(metadata, recording.get_metadata()):
                     continue
 
             result.append(recording.id)

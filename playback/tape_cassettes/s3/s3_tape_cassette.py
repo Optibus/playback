@@ -6,7 +6,6 @@ from random import Random
 from zlib import compress, decompress
 import logging
 import uuid
-from fnmatch import fnmatch
 from datetime import datetime, timedelta
 import six
 from jsonpickle import encode, decode
@@ -251,20 +250,8 @@ class S3TapeCassette(TapeCassette):
         """
         def content_filter_func(recording_str):
             recording_metadata = decode(recording_str)
-            for k, v in metadata.items():  # pylint: disable=invalid-name
-                recorded_value = recording_metadata.get(k)
-                if recorded_value is None and v is not None:
-                    return False
+            return TapeCassette.match_against_recorded_metadata(metadata, recording_metadata)
 
-                if isinstance(v, str):
-                    if not fnmatch(recorded_value, v):
-                        return False
-                elif isinstance(v, list):
-                    return any(fnmatch(recorded_value, value) for value in v)
-                elif recorded_value != v:
-                    return False
-
-            return True
         return content_filter_func
 
     def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
