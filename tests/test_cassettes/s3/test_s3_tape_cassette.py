@@ -292,6 +292,10 @@ class TestS3TapeCassette(unittest.TestCase):
                            list(self.cassette.iter_recording_ids(category='test_operation1',
                                                                  metadata={'property': ['try1', 'try2']})))
 
+        assert_items_equal(self, [recording2.id, recording3.id, recording4.id],
+                           list(self.cassette.iter_recording_ids(category='test_operation1',
+                                                                 metadata={'property': ['val2*', 'test', None]})))
+
     def test_fetch_recording_ids_by_category_and_limit(self):
         recording1 = self.cassette.create_new_recording('test_operation1')
         self.cassette.save_recording(recording1)

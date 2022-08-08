@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from fnmatch import fnmatch
 
 
 class TapeCassette(object):
@@ -113,6 +114,42 @@ class TapeCassette(object):
         for recording_id in self.iter_recording_ids(
                 category, start_date, end_date, metadata, limit):
             yield self.get_recording_metadata(recording_id)
+
+    @staticmethod
+    def match_against_recorded_metadata(filter_by_metadata, recording_metadata):
+        """
+        :param filter_by_metadata: Metadata to match against
+        :type filter_by_metadata: dict
+        :param recording_metadata: Metadata of a recording
+        :type recording_metadata: dict
+        :return: Whether the recorded metadata matches the filter metadata
+        :rtype: bool
+        """
+        for k, v in filter_by_metadata.items():  # pylint: disable=invalid-name
+            recorded_value = recording_metadata.get(k)
+            if not TapeCassette._match_metadata_value(v, recorded_value):
+                return False
+
+        return True
+
+    @staticmethod
+    def _match_metadata_value(match_value, recorded_value):
+        """
+        :param match_value: metadata value to match against
+        :param recorded_value: metadata value in the recording
+        :return: If the recorded value matches the match value
+        :rtype: bool
+        """
+        if isinstance(match_value, list):
+            return any(TapeCassette._match_metadata_value(value, recorded_value) for value in match_value)
+
+        if recorded_value is None and match_value is not None:
+            return False
+
+        if isinstance(match_value, str):
+            return fnmatch(recorded_value, match_value)
+
+        return recorded_value == match_value
 
     @abstractmethod
     def extract_recording_category(self, recording_id):
