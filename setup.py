@@ -50,6 +50,7 @@ setuptools.setup(
         'Werkzeug==0.16.1',
         'Flask==1.1.2',
         'flask-restplus==0.13.0',
+        'future==0.18.2',
         'pylint==2.6.0; python_version > "3.0"',
         'pylint-junit==0.3.2; python_version > "3.0"',
         'flake8==3.8.4; python_version > "3.0"',
