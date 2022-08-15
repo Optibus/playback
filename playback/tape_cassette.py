@@ -143,6 +143,9 @@ class TapeCassette(object):
         if isinstance(match_value, list):
             return any(TapeCassette._match_metadata_value(value, recorded_value) for value in match_value)
 
+        if isinstance(match_value, dict) and 'operator' in match_value and 'value' in match_value:
+            return TapeCassette._operator_filter(recorded_value, match_value)
+
         if recorded_value is None and match_value is not None:
             return False
 
@@ -150,6 +153,25 @@ class TapeCassette(object):
             return fnmatch(recorded_value, match_value)
 
         return recorded_value == match_value
+
+    @staticmethod
+    def _operator_filter(recorded_value, metadata_value):
+        """
+        Check if this is an operator metadata filter and its value is in range
+        """
+        result = False
+        if metadata_value['operator'] == '=':
+            result = recorded_value == metadata_value['value']
+        if metadata_value['operator'] == '<':
+            result = recorded_value < metadata_value['value']
+        if metadata_value['operator'] == '<=':
+            result = recorded_value <= metadata_value['value']
+        if metadata_value['operator'] == '>':
+            result = recorded_value > metadata_value['value']
+        if metadata_value['operator'] == '>=':
+            result = recorded_value >= metadata_value['value']
+
+        return result
 
     @abstractmethod
     def extract_recording_category(self, recording_id):
