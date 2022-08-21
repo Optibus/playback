@@ -1,6 +1,6 @@
 import logging
 from threading import Event, Lock, Thread
-from playback.recording import Recording
+from playback.recordings.memory.memory_recording import MemoryRecording
 from playback.tape_cassette import TapeCassette
 
 _logger = logging.getLogger(__name__)
@@ -126,9 +126,10 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
                 _logger.exception(u"Error running recording operation - {}".format(ex))
 
 
-class AsyncRecording(Recording):
+class AsyncRecording(MemoryRecording):
     """
-    Wraps a recording with asynchronous set behaviour
+    Wraps a recording with asynchronous set behaviour, keep recording data transient in memory during the recording for
+    being able to fetch data from the recording or the metadata if needed
     """
 
     def __init__(self, wrapped_recording, add_async_operation_callback):
@@ -151,20 +152,13 @@ class AsyncRecording(Recording):
         :param value: data value (serializable)
         :type value: Any
         """
+        super(AsyncRecording, self)._set_data(key, value)
         self._add_async_operation_callback(lambda: self.wrapped_recording.set_data(key, value))
-
-    def get_data(self, key):
-        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
-
-    def get_all_keys(self):
-        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def _add_metadata(self, metadata):
         """
         :param metadata: Metadata to add to the recording
         :type metadata: dict
         """
+        super(AsyncRecording, self)._add_metadata(metadata)
         self._add_async_operation_callback(lambda: self.wrapped_recording.add_metadata(metadata))
-
-    def get_metadata(self):
-        raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
