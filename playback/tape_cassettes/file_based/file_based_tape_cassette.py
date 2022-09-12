@@ -66,7 +66,8 @@ class FileBasedTapeCassette(TapeCassette):
         with io.open(self._get_recording_file_path(recording.id), "w", encoding="utf-8") as f:
             f.write(encoded)
 
-    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
+    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None,
+                           random_results=False):
         """
         Creates an iterator of recording ids matching the given search parameters
         :param category: Recordings category
@@ -79,6 +80,8 @@ class FileBasedTapeCassette(TapeCassette):
         :type metadata: dict
         :param limit: Optional limit on number of ids to fetch
         :type limit: int
+        :param random_results: True to return result in random order
+        :type random_results: bool
         :return: Iterator of recording ids matching the given parameters
         :rtype: collections.Iterator[str]
         """

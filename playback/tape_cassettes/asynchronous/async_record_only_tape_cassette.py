@@ -58,7 +58,8 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
     def get_recording(self, recording_id):
         raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
-    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
+    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None,
+                           random_results=False):
         raise TypeError("AsyncTapeCassette should only be used for recording, not playback")
 
     def extract_recording_category(self, recording_id):

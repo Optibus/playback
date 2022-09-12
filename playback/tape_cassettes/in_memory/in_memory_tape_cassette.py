@@ -1,5 +1,7 @@
 import uuid
 from collections import OrderedDict
+from random import shuffle
+
 from jsonpickle import encode, decode
 
 from playback.recordings.memory.memory_recording import MemoryRecording
@@ -49,7 +51,8 @@ class InMemoryTapeCassette(TapeCassette):
         return MemoryRecording(_id=deserialized_form.id, recording_data=deserialized_form.recording_data,
                                recording_metadata=deserialized_form.recording_metadata)
 
-    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None):
+    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None,
+                           random_results=False):
         result = []
         for serialized_recording in self._recordings.values():
             recording = decode(serialized_recording)
@@ -65,6 +68,9 @@ class InMemoryTapeCassette(TapeCassette):
 
         if limit:
             result = result[:limit]
+
+        if random_results:
+            shuffle(result)
 
         return iter(result)
 
