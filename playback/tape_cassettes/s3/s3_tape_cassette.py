@@ -8,6 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta
 import six
+import json
 from jsonpickle import encode, decode
 from parse import compile  # pylint: disable=redefined-builtin
 
@@ -249,7 +250,7 @@ class S3TapeCassette(TapeCassette):
         :rtype: function
         """
         def content_filter_func(recording_str):
-            recording_metadata = decode(recording_str)
+            recording_metadata = json.loads(recording_str)
             return TapeCassette.match_against_recorded_metadata(metadata, recording_metadata)
 
         return content_filter_func
