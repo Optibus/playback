@@ -282,6 +282,31 @@ class S3TapeCassette(TapeCassette):
 
         return id_prefixes
 
+    def _get_days_iterators(self, category, start_date=None, end_date=None, metadata=None, limit=None,
+                            random_results=False):
+        """
+        Get days iterators with recording IDs of each day
+        :param category: Recordings category
+        :type category: basestring
+        :param start_date: Optional recording start date (need to be given in utc time)
+        :type start_date: datetime.datetime
+        :param end_date: Optional recording end date (need to be given in utc time)
+        :type end_date: datetime.datetime
+        :param metadata: Optional metadata values to filter by
+        :type metadata: dict
+        :param limit: Optional limit on number of ids to fetch
+        :type limit: int
+        :param random_results: True to return result in random order
+        :type random_results: bool
+        :return: List of days iterators
+        :rtype: list
+        """
+        content_filter = self._create_content_filter_func(metadata) if metadata else None
+
+        id_prefixes = self._get_id_prefixes(category, start_date, end_date)
+
+        return self.create_id_prefix_iterators(id_prefixes, start_date, end_date, content_filter, limit, random_results)
+
     def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None,
                            random_results=False):
         """
@@ -301,15 +326,17 @@ class S3TapeCassette(TapeCassette):
         :return: Iterator of keys matching the given parameters
         :rtype: collections.Iterator[basestring]
         """
-        content_filter = self._create_content_filter_func(metadata) if metadata else None
 
-        id_prefixes = self._get_id_prefixes(category, start_date, end_date)
+        days_iterators = self._get_days_iterators(category, start_date, end_date, metadata, limit, random_results)
 
-        id_prefix_iterators = self.create_id_prefix_iterators(id_prefixes, start_date, end_date, content_filter, limit,
-                                                              random_results)
         count = 0
-        while count != limit and id_prefix_iterators:
-            random_day_iterator = random.choice(id_prefix_iterators) if random_results else id_prefix_iterators[0]
+        iter_index = 0
+        while count != limit and days_iterators:
+            if random_results:
+                random_day_iterator = random.choice(days_iterators)
+            else:
+                random_day_iterator = days_iterators[iter_index % len(days_iterators)]
+                iter_index += 1
             key = next(random_day_iterator, None)
             if key:
                 result = self._metadata_key_parser.parse(key)
@@ -318,7 +345,7 @@ class S3TapeCassette(TapeCassette):
                 yield recording_id
                 count += 1
             else:
-                id_prefix_iterators.remove(random_day_iterator)
+                days_iterators.remove(random_day_iterator)
 
     def extract_recording_category(self, recording_id):
         """
