@@ -1,5 +1,3 @@
-from random import shuffle
-
 from playback.tape_recorder import TapeRecorder
 
 
@@ -45,11 +43,7 @@ def find_matching_recording_ids(tape_recorder, category, lookup_properties):
     recording_ids = tape_recorder.tape_cassette.iter_recording_ids(
             category, start_date=lookup_properties.start_date, end_date=lookup_properties.end_date,
             metadata=metadata,
-            limit=(None if lookup_properties.random_sample else lookup_properties.limit))
-
-    if lookup_properties.random_sample:
-        recording_ids = list(recording_ids)
-        shuffle(recording_ids)
-        recording_ids = iter(recording_ids[:lookup_properties.limit])
+            limit=lookup_properties.limit,
+            random_results=lookup_properties.random_sample)
 
     return recording_ids

@@ -1,5 +1,7 @@
 import logging
 from functools import reduce
+from random import shuffle
+
 import boto3
 
 
@@ -50,7 +52,8 @@ class S3BasicFacade(object):
         """
         return self.client.get_object(Bucket=self.bucket, Key=key)['Body'].read()
 
-    def iter_keys(self, prefix=None, start_date=None, end_date=None, content_filter=None, limit=None):
+    def iter_keys(self, prefix=None, start_date=None, end_date=None, content_filter=None, limit=None,
+                  random_results=False):
         """
         yields the keys that exist in the S3 store.
         :param prefix: if not None, yields only objects with keys that start with the given prefix.
@@ -63,6 +66,8 @@ class S3BasicFacade(object):
         :type content_filter: function
         :param limit: Optional limit on number of keys to fetch
         :type limit: int
+        :param random_results: True to return result in random order
+        :type random_results: bool
         :rtype: Iterator[str]
         """
 
@@ -78,8 +83,15 @@ class S3BasicFacade(object):
         if content_filter:
             predicates.append(lambda o: content_filter(o.get()["Body"].read()))
 
+        if random_results:
+            s3_objects = list(self._bucket.objects.filter(Prefix=prefix))
+            shuffle(s3_objects)
+            s3_objects_iter = iter(s3_objects)
+        else:
+            s3_objects_iter = self._bucket.objects.filter(Prefix=prefix)
+
         count = 0
-        for s3_object in self._bucket.objects.filter(Prefix=prefix):
+        for s3_object in s3_objects_iter:
             if count == limit:
                 break
             # pylint: disable=cell-var-from-loop

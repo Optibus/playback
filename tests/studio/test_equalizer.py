@@ -130,8 +130,8 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(8, comparison[1].actual)
         self.assertEqual(500, comparison[2].actual)
 
-        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata={
-            TapeRecorder.INCOMPLETE_RECORDING: [False, None]})
+        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None,
+                                random_results=False, metadata={TapeRecorder.INCOMPLETE_RECORDING: [False, None]})
         self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
         self.assertGreaterEqual(comparison[0].playback.recorded_duration, 0)
 
@@ -218,7 +218,8 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(8, comparison[1].actual)
         self.assertEqual(500, comparison[2].actual)
 
-        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None, metadata=None)
+        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=end_date, limit=None,
+                                random_results=False, metadata=None)
         self.assertGreaterEqual(comparison[0].playback.playback_duration, 0)
         self.assertGreaterEqual(comparison[0].playback.recorded_duration, 0)
 
@@ -541,7 +542,7 @@ class TestEqualizer(unittest.TestCase):
         self.assertEqual(1, len(comparison))
         self.assertEqual(EqualityStatus.Equal, comparison[0].comparator_status.equality_status)
 
-        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=None,
+        mock.assert_called_with(Operation.__name__, start_date=start_date, end_date=None, random_results=False,
                                 limit=1, metadata={'meta': 'b', TapeRecorder.INCOMPLETE_RECORDING: [False, None]})
         self.assertEqual(4, comparison[0].expected)
         self.assertEqual(4, comparison[0].actual)

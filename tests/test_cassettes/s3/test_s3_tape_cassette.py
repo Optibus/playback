@@ -1,6 +1,7 @@
 # p3ready
 from __future__ import absolute_import
 
+import random
 import unittest
 import uuid
 from datetime import datetime, timedelta
@@ -8,6 +9,10 @@ from mock import patch
 import boto3
 from mock.mock import Mock
 from moto import mock_s3
+from playback.tape_recorder import TapeRecorder
+
+from playback.studio.recordings_lookup import find_matching_recording_ids, RecordingLookupProperties
+
 from playback.exceptions import NoSuchRecording
 from playback.recording import Recording
 import six
@@ -32,6 +37,8 @@ class TestS3TapeCassette(unittest.TestCase):
         conn.create_bucket(Bucket=TEST_BUCKET)
         self.cassette = S3TapeCassette(TEST_BUCKET, key_prefix='tests_' + uuid.uuid1().hex, transient=True,
                                        read_only=False)
+        self.tape_recorder = TapeRecorder(self.cassette)
+        self.tape_recorder.enable_recording()
 
     def tearDown(self):
         self.cassette.close()
@@ -359,3 +366,99 @@ class TestS3TapeCassette(unittest.TestCase):
             new_cassette.save_recording(recording)
             with self.assertRaises(NoSuchRecording):
                 new_cassette.get_recording(recording.id)
+
+    def test_without_random_sample(self):
+
+        class Operation(object):
+            def __init__(self, value=None):
+                self._value = value
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input
+
+        for i in range(10):
+            Operation(i).execute()
+
+        def playback_function(recording):
+            return Operation().execute()
+
+        random.seed(12)
+        first_list = None
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=False,
+                limit=3)
+        )
+        first_list = list(playable_recordings)
+        self.assertEqual(len(first_list), 3)
+
+        random.seed(4)
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=False,
+                limit=3)
+        )
+        second_list = list(playable_recordings)
+        self.assertEqual(second_list, first_list)
+
+    def test_random_sample(self):
+
+        class Operation(object):
+            def __init__(self, value=None):
+                self._value = value
+
+            @property
+            @self.tape_recorder.intercept_input('input')
+            def input(self):
+                return self._value
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.input
+
+        for i in range(10):
+            Operation(i).execute()
+
+        def playback_function(recording):
+            return Operation().execute()
+
+        random.seed(12)
+        first_list = None
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=True,
+                limit=3)
+        )
+        first_list = list(playable_recordings)
+        self.assertEqual(len(first_list), 3)
+
+        random.seed(4)
+        start_date = datetime.utcnow() - timedelta(hours=1)
+        playable_recordings = find_matching_recording_ids(
+            self.tape_recorder,
+            category=Operation.__name__,
+            lookup_properties=RecordingLookupProperties(
+                start_date=start_date,
+                random_sample=True,
+                limit=3)
+        )
+        second_list = list(playable_recordings)
+        self.assertNotEqual(second_list, first_list)
