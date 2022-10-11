@@ -1222,6 +1222,73 @@ class TestTapeRecorder(unittest.TestCase):
                                                   playback_function=lambda recording: OperationNew(5).execute())
         self._assert_playback_vs_recording(playback_result, result)
 
+    def test_intercept_input_run_func_when_missing(self):
+        class OperationOld(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            def get_value(self):
+                return self.seed
+
+        class OperationNew(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input', value_when_missing=lambda self: self.seed)
+            def get_value(self):
+                raise Exception()
+
+        instance = OperationOld(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: OperationNew(5).execute())
+        self._assert_playback_vs_recording(playback_result, result)
+
+    def test_intercept_input_value_when_missing(self):
+        class OperationOld(object):
+
+            def __init__(self, seed=0):
+                self.seed = seed
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            def get_value(self):
+                return self.seed
+
+        class OperationNew(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_value()
+
+            @self.tape_recorder.intercept_input('input', value_when_missing=5)
+            def get_value(self):
+                raise Exception()
+
+        instance = OperationOld(5)
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: OperationNew().execute())
+        self._assert_playback_vs_recording(playback_result, result)
+
     def test_raise_base_exception_mark_broken_recording(self):
 
         class UncaughtException(BaseException):

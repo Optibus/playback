@@ -463,7 +463,7 @@ class TapeRecorder(object):
         return self._playback_recording.get_data(key)
 
     def static_intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                               run_intercepted_when_missing=False):
+                               run_intercepted_when_missing=False, value_when_missing=None):
         """
         Decorates a static function that acts as an input to the operation, the result of the function is
         the  recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -484,14 +484,18 @@ class TapeRecorder(object):
         :param run_intercepted_when_missing: If no matching content is found on recording during playback,
         run the original intercepted method
         :type run_intercepted_when_missing: bool
+        :param value_when_missing: If no matching content is found, returns the given value instead. If the given value
+        is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
+        will be returned
+        :type value_when_missing: function or Any
         :return: Decorated function
         :rtype: function
         """
         return self._intercept_input(alias, alias_params_resolver, data_handler, capture_args,
-                                     run_intercepted_when_missing, static_function=True)
+                                     run_intercepted_when_missing, value_when_missing, static_function=True)
 
     def intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                        run_intercepted_when_missing=False):
+                        run_intercepted_when_missing=False, value_when_missing=None):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -512,11 +516,15 @@ class TapeRecorder(object):
         :param run_intercepted_when_missing: If no matching content is found on recording during playback,
         run the original intercepted method
         :type run_intercepted_when_missing: bool
+        :param value_when_missing: If no matching content is found, returns the given value instead. If the given value
+        is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
+        will be returned
+        :type value_when_missing: function or Any
         :return: Decorated function
         :rtype: function
         """
         return self._intercept_input(alias, alias_params_resolver, data_handler, capture_args,
-                                     run_intercepted_when_missing, static_function=False)
+                                     run_intercepted_when_missing, value_when_missing, static_function=False)
 
     def static_intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
                                 default_result_when_not_recorded=None):
@@ -635,7 +643,7 @@ class TapeRecorder(object):
         return func_decoration
 
     def _intercept_input(self, alias, alias_params_resolver, data_handler, capture_args, run_intercepted_when_missing,
-                         static_function):
+                         value_when_missing, static_function):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -657,6 +665,10 @@ class TapeRecorder(object):
         :param run_intercepted_when_missing: If no matching content is found on recording during playback,
         run the original intercepted method
         :type run_intercepted_when_missing: bool
+        :param value_when_missing: If no matching content is found, returns the given value instead. If the given value
+        is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
+        will be returned
+        :type value_when_missing: function or Any
         :param static_function: Is this a static function
         :type static_function: bool
         :return: Decorated function
@@ -694,10 +706,14 @@ class TapeRecorder(object):
                     try:
                         return self._playback_recorded_interception(interception_key, args, kwargs, data_handler)
                     except RecordingKeyError:
-                        if not run_intercepted_when_missing:
-                            raise
-                        # Run the original method when content was missing in recording
-                        return func(*args, **kwargs)
+                        if run_intercepted_when_missing:
+                            # Run the original method when content was missing in recording
+                            return func(*args, **kwargs)
+                        if value_when_missing:
+                            if callable(value_when_missing):
+                                return value_when_missing(*args, **kwargs)
+                            return value_when_missing
+                        raise
 
                 return self._execute_func_and_record_interception(func, interception_key, args, kwargs, data_handler)
 
