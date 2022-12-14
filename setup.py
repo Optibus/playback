@@ -6,7 +6,7 @@ from setuptools.command.install import install
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-VERSION = '0.3.17'
+VERSION = '0.3.18'
 
 
 class VerifyVersionCommand(install):
@@ -35,7 +35,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'parse==1.6.6',
-        'jsonpickle==0.9.3',
+        'jsonpickle==2.2.0',
         'six>=1.15.0',
         'contextlib2==0.6.0',
         'decorator==4.4.2'
