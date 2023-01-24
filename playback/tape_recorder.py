@@ -6,23 +6,15 @@ import logging
 from random import Random
 from datetime import datetime
 from time import time
-from jsonpickle import encode, decode
+from jsonpickle import encode
 from decorator import contextmanager
 
 from playback.exceptions import InputInterceptionKeyCreationError, OperationExceptionDuringPlayback, \
     TapeRecorderException, RecordingKeyError
+from playback.utils.is_iterable import is_iterable
+from playback.utils.pickle_copy import pickle_copy
 
 _logger = logging.getLogger(__name__)
-
-
-def pickle_copy(value):
-
-    """ copies any object (deeply) by pickly encoding/decoding it
-    :type value: any
-    :param value: the value you to be copied
-    :rtype: any
-    """
-    return decode(encode(value, unpicklable=True))
 
 
 class TapeRecorder(object):
@@ -463,7 +455,7 @@ class TapeRecorder(object):
         return self._playback_recording.get_data(key)
 
     def static_intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                               run_intercepted_when_missing=False, value_when_missing=None):
+                               run_intercepted_when_missing=False, value_when_missing=None, fallback_aliases=None):
         """
         Decorates a static function that acts as an input to the operation, the result of the function is
         the  recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -488,14 +480,19 @@ class TapeRecorder(object):
         is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
         will be returned
         :type value_when_missing: function or Any
+        :param fallback_aliases: A list of fallback aliases or a function returning such a list. These aliases will be
+        used to find the data in the recording in case when there are no results for the main alias. Useful if the main
+        alias was changed (for example, due to a refactoring), but old recordings should still be playbable.
+        :type fallback_aliases: function or list of str
         :return: Decorated function
         :rtype: function
         """
         return self._intercept_input(alias, alias_params_resolver, data_handler, capture_args,
-                                     run_intercepted_when_missing, value_when_missing, static_function=True)
+                                     run_intercepted_when_missing, value_when_missing, fallback_aliases,
+                                     static_function=True)
 
     def intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                        run_intercepted_when_missing=False, value_when_missing=None):
+                        run_intercepted_when_missing=False, value_when_missing=None, fallback_aliases=None):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -520,11 +517,16 @@ class TapeRecorder(object):
         is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
         will be returned
         :type value_when_missing: function or Any
+        :param fallback_aliases: A list of fallback aliases or a function returning such a list. These aliases will be
+        used to find the data in the recording in case when there are no results for the main alias. Useful if the main
+        alias was changed (for example, due to a refactoring), but old recordings should still be playbable.
+        :type fallback_aliases: function or list of str
         :return: Decorated function
         :rtype: function
         """
         return self._intercept_input(alias, alias_params_resolver, data_handler, capture_args,
-                                     run_intercepted_when_missing, value_when_missing, static_function=False)
+                                     run_intercepted_when_missing, value_when_missing, fallback_aliases,
+                                     static_function=False)
 
     def static_intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
                                 default_result_when_not_recorded=None):
@@ -629,7 +631,7 @@ class TapeRecorder(object):
                 if self.in_playback_mode:
                     # Return recording of input invocation
                     try:
-                        return self._playback_recorded_interception(interception_key, args, kwargs)
+                        return self._playback_recorded_interception([interception_key], args, kwargs)
                     except RecordingKeyError:
                         if fail_on_no_recorded_result:
                             raise
@@ -643,7 +645,7 @@ class TapeRecorder(object):
         return func_decoration
 
     def _intercept_input(self, alias, alias_params_resolver, data_handler, capture_args, run_intercepted_when_missing,
-                         value_when_missing, static_function):
+                         value_when_missing, fallback_aliases, static_function):
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -689,6 +691,17 @@ class TapeRecorder(object):
                     formatted_alias = self._format_alias(alias, alias_params_resolver, *args, **kwargs)
                     interception_key = self._input_interception_key(formatted_alias, capture_args,
                                                                     static_function, *args, **kwargs)
+
+                    if callable(fallback_aliases):
+                        fallback_aliases_list = fallback_aliases(*args, **kwargs)
+                    elif is_iterable(fallback_aliases):
+                        fallback_aliases_list = fallback_aliases
+                    else:
+                        fallback_aliases_list = []
+
+                    possible_keys = [interception_key] + [self._input_interception_key(fallback_alias, capture_args,
+                                                                                       static_function, *args, **kwargs)
+                                                          for fallback_alias in fallback_aliases_list]
                 except Exception as ex:
                     error_message = u'Input interception key creation error for alias \'{}\' - {}'.format(
                         alias, repr(ex))
@@ -704,7 +717,7 @@ class TapeRecorder(object):
                 if self.in_playback_mode:
                     # Return recording of input invocation
                     try:
-                        return self._playback_recorded_interception(interception_key, args, kwargs, data_handler)
+                        return self._playback_recorded_interception(possible_keys, args, kwargs, data_handler)
                     except RecordingKeyError:
                         if run_intercepted_when_missing:
                             # Run the original method when content was missing in recording
@@ -743,11 +756,11 @@ class TapeRecorder(object):
 
         return alias.format(**alias_params_resolver(*args, **kwargs))
 
-    def _playback_recorded_interception(self, interception_key, args, kwargs, data_handler=None):
+    def _playback_recorded_interception(self, possible_keys, args, kwargs, data_handler=None):
         """
-        Playback the recorded data (value or exception) under the given interception key
-        :param interception_key: Interception key of recorded data
-        :type interception_key: basestring
+        Playback the recorded data (value or exception) under the given possible keys
+        :param possible_keys: Possible interception keys of a recorded data
+        :type possible_keys: list of basestring
         :param args: invocation args
         :type args: tuple
         :param kwargs: invocation kwrags
@@ -756,6 +769,14 @@ class TapeRecorder(object):
         :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
         :return: Recorded intercepted value
         """
+        recording_keys = self._playback_recording.get_all_keys()
+
+        interception_key = next((x for x in possible_keys if x in recording_keys), None)
+
+        if not interception_key:
+            raise RecordingKeyError(
+                u'None of the possible keys \'{}\' was found in the recording'.format(possible_keys).encode("utf-8"))
+
         recorded = self._playback_recording.get_data(interception_key)
         if 'exception' in recorded:
             raise recorded['exception']

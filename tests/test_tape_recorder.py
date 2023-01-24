@@ -434,6 +434,70 @@ class TestTapeRecorder(unittest.TestCase):
         with self.assertRaises(RecordingKeyError):
             self.tape_recorder.play(recording_id, playback_function=lambda recording: Operation('key2').execute())
 
+    def test_input_interception_key_fallback_aliases_as_list(self):
+        class OldOperation(object):
+            @self.tape_recorder.operation()
+            def execute(self):
+                value = self.input('a_param')
+                return value
+
+            @self.tape_recorder.intercept_input('old_input')
+            def input(self, _param):
+                return 5
+
+        class NewOperation(object):
+            @self.tape_recorder.operation()
+            def execute(self):
+                value = self.input('a_param')
+                return value
+
+            @self.tape_recorder.intercept_input('new_input', fallback_aliases=['old_input'])
+            def input(self, _param):
+                return 5
+
+        instance = OldOperation()
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: NewOperation().execute())
+
+        self._assert_playback_vs_recording(playback_result, result)
+
+    def test_input_interception_key_fallback_aliases_as_function(self):
+        class OldOperation(object):
+            @self.tape_recorder.operation()
+            def execute(self):
+                value = self.input('a_param')
+                return value
+
+            @self.tape_recorder.intercept_input('old_input')
+            def input(self, _param):
+                return 5
+
+        class NewOperation(object):
+            @self.tape_recorder.operation()
+            def execute(self):
+                value = self.input('a_param')
+                return value
+
+            @self.tape_recorder.intercept_input('new_input', fallback_aliases=lambda *args, **kwargs: ['old_input'])
+            def input(self, _param):
+                return 5
+
+        instance = OldOperation()
+        result = instance.execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: NewOperation().execute())
+
+        self._assert_playback_vs_recording(playback_result, result)
+
     def test_output_interception_key_missing_during_playback(self):
 
         class Operation(object):
