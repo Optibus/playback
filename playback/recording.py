@@ -38,6 +38,9 @@ class Recording(object):
     @abstractmethod
     def get_data(self, key):
         """
+        Should always return a fresh copy of the data event when called multiple times with the same key,
+        to prevent modifications of the recording by the calling code. These modifications can lead to differences in
+        outputs that are not expected and will yield false positives.
         :param key: Data key
         :type key: basestring
         :return: Recorded data under given key
