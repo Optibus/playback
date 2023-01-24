@@ -9,7 +9,7 @@ disable=missing-module-docstring,useless-object-inheritance,logging-format-inter
 [BASIC]
 good-names=id,ex,f
 [DESIGN]
-max-args=8
+max-args=9
 max-attributes=12
 [SIMILARITIES]
 
