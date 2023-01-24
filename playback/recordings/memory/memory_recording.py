@@ -1,5 +1,6 @@
 from playback.exceptions import RecordingKeyError
 from playback.recording import Recording
+from playback.utils.pickle_copy import pickle_copy
 
 
 class MemoryRecording(Recording):
@@ -37,7 +38,10 @@ class MemoryRecording(Recording):
         if key not in self.recording_data:
             raise RecordingKeyError(u'Key \'{}\' not found in recording'.format(key).encode("utf-8"))
 
-        return self.recording_data.get(key)
+        # The contract of the recording requires the implementation to always return a fresh copy of the data.
+        # It prevents in place modifications that may be done by the calling code to influence the outcome
+        # of the recording playback. That's why we copy here.
+        return pickle_copy(self.recording_data.get(key))
 
     def get_all_keys(self):
         """
