@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 import unittest
 from random import shuffle, random
+from concurrent.futures import ThreadPoolExecutor
 
 from jsonpickle import encode, decode
 from mock import patch
@@ -1404,13 +1405,43 @@ class TestTapeRecorder(unittest.TestCase):
 
                 return val1['counter'] + val2['counter']
 
-            @self.tape_recorder.intercept_input('input', )
+            @self.tape_recorder.intercept_input('input')
             def get_value(self):
                 return {'counter': 0}
 
         instance = Operation()
         result = instance.execute()
         self.assertEqual(2, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        playback_result = self.tape_recorder.play(recording_id,
+                                                  playback_function=lambda recording: Operation().execute())
+        self._assert_playback_vs_recording(playback_result, result)
+
+    def test_correct_interceptions_in_multiple_threads(self):
+        @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
+        class Operation(object):
+            @self.tape_recorder.operation()
+            def execute(self):
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    return ''.join(executor.map(lambda args: self.do_stuff(*args), [[
+                        'foo', 0.1, 0.5
+                    ], [
+                        'bar', 0.5, 0.1
+                    ]]))
+
+            def do_stuff(self, param, sleep_before_interception, sleep_during_interception):
+                sleep(sleep_before_interception)
+                return self.get_value(param, sleep_during_interception)
+
+            @self.tape_recorder.intercept_input('input')
+            def get_value(self, param, sleep_during_interception):
+                sleep(sleep_during_interception)
+                return param
+
+        instance = Operation()
+        result = instance.execute()
+        self.assertEqual('foobar', result)
 
         recording_id = self.tape_cassette.get_last_recording_id()
         playback_result = self.tape_recorder.play(recording_id,

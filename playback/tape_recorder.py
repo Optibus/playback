@@ -1,11 +1,13 @@
 # pylint: disable=not-context-manager
 # pylint: disable=broad-except
+# pylint: disable=too-many-lines
 from __future__ import absolute_import
 from collections import namedtuple, Counter
 import logging
 from random import Random
 from datetime import datetime
 from time import time
+import threading
 from jsonpickle import encode
 from decorator import contextmanager
 
@@ -48,7 +50,7 @@ class TapeRecorder(object):
         self._classes_recording_params = {}
         self._random = Random(random_seed)
         self._force_sample = False
-        self._currently_in_interception = False
+        self._thread_locals = threading.local()
 
     @contextmanager
     def start_recording(self, category, metadata, post_operation_metadata_extractor=None):
@@ -270,6 +272,25 @@ class TapeRecorder(object):
         if self.in_playback_mode:
             return self._playback_recording.id
         return None
+
+    @property
+    def _currently_in_interception(self):
+        """
+        :return: Is currently in interception
+        :rtype: bool
+        """
+        if not hasattr(self._thread_locals, 'currently_in_interception'):
+            return False
+
+        return self._thread_locals.currently_in_interception
+
+    @_currently_in_interception.setter
+    def _currently_in_interception(self, value):
+        """
+        :param value: Is currently in interception
+        :type value: bool
+        """
+        self._thread_locals.currently_in_interception = value
 
     @property
     def _should_intercept(self):
