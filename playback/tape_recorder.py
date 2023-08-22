@@ -51,7 +51,6 @@ class TapeRecorder(object):
         self._random = Random(random_seed)
         self._force_sample = False
         self._thread_locals = threading.local()
-        self._currently_in_interception = False
 
     @contextmanager
     def start_recording(self, category, metadata, post_operation_metadata_extractor=None):
