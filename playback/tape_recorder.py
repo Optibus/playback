@@ -148,7 +148,7 @@ class TapeRecorder(object):
         """
         metadata[TapeRecorder.DURATION] = duration
         metadata[TapeRecorder.RECORDED_AT] = str(datetime.utcnow())
-        outputs = TapeRecorder._extract_recorded_output(recording)
+        outputs = TapeRecorder._extract_recorded_output(recording, direct_access=True)
         # Check if the operation has completed by checking if we have operation output recorded, if not it means
         # the operation method didn't complete and regular exception was not caught
         # (this will happen when BaseException is raised such as KeyboardInterrupt, SystemExit)
@@ -903,16 +903,19 @@ class TapeRecorder(object):
         return Playback(playback_outputs, playback_duration, recorded_outputs, recorded_duration, recording)
 
     @staticmethod
-    def _extract_recorded_output(recording):
+    def _extract_recorded_output(recording, direct_access=False):
         """
         :param recording:
         :type recording: playback.recording.Recording
-        :return:
-        :rtype:
+        :param direct_access: Should the output be extracted using direct access
+        :type direct_access: bool
+        :return: List of output objects
+        :rtype: list of Output
         """
         all_output_keys = [key for key in recording.get_all_keys() if key.startswith('output:') and
                            not key.endswith('result')]
-        return [Output(key, recording.get_data(key)) for key in all_output_keys]
+        return [Output(key, (recording.get_data if not direct_access else recording.get_data_direct)(key))
+                for key in all_output_keys]
 
     @staticmethod
     def _input_interception_key(alias, capture_args, static_function, *args, **kwargs):

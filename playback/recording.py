@@ -50,6 +50,20 @@ class Recording(object):
         pass
 
     @abstractmethod
+    def get_data_direct(self, key):
+        """
+        Get the data directly from the recording with necessarily copying it, this should be used with care for
+        performance reasons, mainly to be accessed during the recording stage as it can return the underlying saved
+        data and not a copy
+        :param key: Data key
+        :type key: basestring
+        :return: Recorded data under given key
+        :rtype: Any
+        :raise: playback.exceptions.RecordingKeyError
+        """
+        pass
+
+    @abstractmethod
     def get_all_keys(self):
         """
         :return: All recorded keys

@@ -35,13 +35,22 @@ class MemoryRecording(Recording):
         :return: Recorded data under given key
         :rtype: Any
         """
-        if key not in self.recording_data:
-            raise RecordingKeyError(u'Key \'{}\' not found in recording'.format(key).encode("utf-8"))
-
         # The contract of the recording requires the implementation to always return a fresh copy of the data.
         # It prevents in place modifications that may be done by the calling code to influence the outcome
         # of the recording playback. That's why we copy here.
-        return pickle_copy(self.recording_data.get(key))
+        return pickle_copy(self.get_data_direct(key))
+
+    def get_data_direct(self, key):
+        """
+        :param key: Data key
+        :type key: basestring
+        :return: Recorded data under given key
+        :rtype: Any
+        """
+        if key not in self.recording_data:
+            raise RecordingKeyError(u'Key \'{}\' not found in recording'.format(key).encode("utf-8"))
+
+        return self.recording_data.get(key)
 
     def get_all_keys(self):
         """
