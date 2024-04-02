@@ -181,7 +181,7 @@ class TapeRecorder(object):
         :type data: Any
         """
         self._assert_recording()
-        _logger.info(u'Recording data for recording id {} under key {}'.format(self._active_recording.id, key))
+        _logger.debug(u'Recording data for recording id {} under key {}'.format(self._active_recording.id, key))
         self._active_recording[key] = data
 
     def _assert_recording(self):
