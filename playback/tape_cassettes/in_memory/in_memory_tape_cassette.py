@@ -1,98 +1,71 @@
-import uuid
-from collections import OrderedDict
-from random import shuffle
+import { TapeCassette } from "../../tapeCassette";
+import { MemoryRecording } from "../../recordings/memory/memoryRecording";
+import { encode, decode } from "jsonpickle";
+import { v1 as uuid } from "uuid";
+import { shuffle } from "lodash";
 
-from jsonpickle import encode, decode
+export class InMemoryTapeCassette implements TapeCassette {
+    private _recordings: Map<string, string>;
+    private _lastId: string | null;
 
-from playback.recordings.memory.memory_recording import MemoryRecording
-from playback.tape_cassette import TapeCassette
+    constructor() {
+        this._recordings = new Map<string, string>();
+        this._lastId = null;
+    }
 
+    createNewRecording(category: string): MemoryRecording {
+        return new MemoryRecording(`${category}/${uuid()}`);
+    }
 
-class InMemoryTapeCassette(TapeCassette):
-    """
-    Implementation of TapeCassette that saves everything in memory, mainly for playing around and testing
-    and not meant for production use
-    """
-    def __init__(self):
-        self._recordings = OrderedDict()
-        self._last_id = None
+    saveRecording(recording: MemoryRecording): void {
+        this._recordings.set(recording.id, encode(recording, {unpicklable: true}));
+        this._lastId = recording.id;
+    }
 
-    def create_new_recording(self, category):
-        """
-        :param category: A category to classify the recording in (e.g operation class) (serializable)
-        :type category: Any
-        :return: Creates a new recording object
-        :rtype: playback.recording.Recording
-        """
-        return MemoryRecording(u'{}/{}'.format(category, uuid.uuid1().hex))
+    getRecording(recordingId: string): MemoryRecording | null {
+        const serializedRecording = this._recordings.get(recordingId);
+        if (!serializedRecording) {
+            return null;
+        }
+        const deserializedForm = decode(serializedRecording) as MemoryRecording;
+        return new MemoryRecording(deserializedForm.id, deserializedForm.recordingData, deserializedForm.recordingMetadata);
+    }
 
-    def _save_recording(self, recording):
-        """
-        Saves given recording
-        :param recording: Recording to save
-        :type recording: playback.recording.Recording
-        """
-        # We use pickle serialization to find common serialization pitfalls when real cassettes will be used
-        self._recordings[recording.id] = encode(recording, unpicklable=True)
-        self._last_id = recording.id
+    iterRecordingIds(category: string, start_date?: Date, end_date?: Date, metadata?: any, limit?: number, randomResults: boolean = false): IterableIterator<string> {
+        let result: string[] = [];
+        for (const [recordingId, serializedRecording] of this._recordings) {
+            const recording = decode(serializedRecording) as MemoryRecording;
+            if (this.extractRecordingCategory(recordingId) !== category) {
+                continue;
+            }
 
-    def get_recording(self, recording_id):
-        """
-        Get recording stored in the given id
-        :param recording_id: Id to look for the recording
-        :type recording_id: basestring
-        :return: Recording in the given id
-        :rtype: playback.recording.Recording
-        """
-        serialized_recording = self._recordings.get(recording_id)
-        if serialized_recording is None:
-            return None
-        deserialized_form = decode(serialized_recording)
-        return MemoryRecording(_id=deserialized_form.id, recording_data=deserialized_form.recording_data,
-                               recording_metadata=deserialized_form.recording_metadata)
+            if (metadata && !TapeCassette.matchAgainstRecordedMetadata(metadata, recording.getMetadata())) {
+                continue;
+            }
 
-    def iter_recording_ids(self, category, start_date=None, end_date=None, metadata=None, limit=None,
-                           random_results=False):
-        result = []
-        for serialized_recording in self._recordings.values():
-            recording = decode(serialized_recording)
-            if self.extract_recording_category(recording.id) != category:
-                continue
+            result.push(recordingId);
+        }
 
-            if metadata:
-                # Filter based on metadata if provided
-                if not TapeCassette.match_against_recorded_metadata(metadata, recording.get_metadata()):
-                    continue
+        if (limit) {
+            result = result.slice(0, limit);
+        }
 
-            result.append(recording.id)
+        if (randomResults) {
+            shuffle(result);
+        }
 
-        if limit:
-            result = result[:limit]
+        return result[Symbol.iterator]();
+    }
 
-        if random_results:
-            shuffle(result)
+    extractRecordingCategory(recordingId: string): string {
+        return recordingId.split('/')[0];
+    }
 
-        return iter(result)
+    getLastRecordingId(): string | null {
+        return this._lastId;
+    }
 
-    def extract_recording_category(self, recording_id):
-        """
-        :param recording_id: Recording id to extract category from
-        :type recording_id: str
-        :return: Recording's category
-        :rtype: str
-        """
-        return recording_id.split('/')[0]
-
-    def get_last_recording_id(self):
-        """
-        :return: Last recording id
-        :rtype: str
-        """
-        return self._last_id
-
-    def get_all_recording_ids(self):
-        """
-        :return: All recording ids
-        :rtype: list of str
-        """
-        return sorted(self._recordings.keys())
+    getAllRecordingIds(): string[] {
+        return Array.from(this._recordings.keys()).sort();
+    }
+}
