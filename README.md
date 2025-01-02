@@ -81,6 +81,14 @@ class ServiceOperation(object):
         result_key = self.put_result_in_mongo(result)
         return result_key
 ```
+
+## Locally Cached S3 Tape Cassette
+The `CachedReadOnlyS3TapeCassette` class serves as an alternative to `S3TapeCassette`, enabling the storage of recordings locally. By providing a local path (or defaulting to `/tmp/recordings_cache`), it eliminates the need for constant access to AWS S3. In the event of a cache failure, the class gracefully falls back to its parent `S3TapeCassette`, attempting to fetch the original recording data directly from S3 as needed.
+```
+tape_cassette = CachedReadOnlyS3TapeCassette('production-recordings', region='us-east-1', read_only=True, local_path=`/tmp/recordings_cache`, use_cache=True)
+```
+Notice that CachedReadOnlyS3TapeCassette is used in a read_only state only and you can refresh your recording id cache by calling it with use_cache=False 
+
 ## Replaying an intercepted operation
 In order to replay an operation, you need the specific recording ID. Typically, you would add this information to your
 logs output. Later, we will demonstrate how to look for recording IDs using search filters, the `Equalizer`, and the
