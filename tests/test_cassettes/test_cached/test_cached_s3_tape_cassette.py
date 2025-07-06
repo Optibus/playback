@@ -24,29 +24,26 @@ class TestReadOnlyCachedS3TapeCassette(unittest.TestCase):
         self.recording_id = os.path.join(recording_path, recording_file_name)
         self.resource_file_location = os.path.join(self.resource_files_path, recording_file_name)
         self.tmp_path = tempfile.mkdtemp()
-        CachedS3BasicFacade.DEFAULT_CACHE_PATH = os.path.join(self.tmp_path, "recordings_cache")
+        CachedS3BasicFacade.DEFAULT_CACHE_PATH = os.path.join(self.tmp_path, "default_cache", "recordings_cache")
         self.s3_files_location = os.path.join(self.tmp_path, "s3")
         os.makedirs(os.path.join(self.s3_files_location, recording_path))
 
         self.s3_file_path = os.path.join(self.s3_files_location, self.recording_id)
 
-        self.cache_path = None if self.CACHE_PATH == "default" else os.path.join(self.tmp_path, "recordings_cache")
+        self.cache_path = None if self.CACHE_PATH == "default" else os.path.join(self.tmp_path, "cache",
+                                                                                 "recordings_cache")
         if self.cache_path:
             self.cache_file_path = os.path.join(self.cache_path, recording_file_name)
         else:
             self.cache_file_path = os.path.join(CachedS3BasicFacade.DEFAULT_CACHE_PATH, recording_file_name)
 
         # Make sure initial directory state is as needed for default dir or not and or first run or not
+        file_path = os.path.dirname(self.cache_file_path)
         if not self.first_run:
-            if self.cache_path is not None and not os.path.exists(self.cache_path):
-                os.mkdir(self.cache_path)
-            if self.cache_path is None and not os.path.exists(CachedS3BasicFacade.DEFAULT_CACHE_PATH):
-                os.mkdir(CachedS3BasicFacade.DEFAULT_CACHE_PATH)
+            os.makedirs(file_path)
         else:
-            if self.cache_path is not None and os.path.exists(self.cache_path):
-                shutil.rmtree(self.cache_path)
-            if self.cache_path is None and os.path.exists(CachedS3BasicFacade.DEFAULT_CACHE_PATH):
-                shutil.rmtree(CachedS3BasicFacade.DEFAULT_CACHE_PATH)
+            if os.path.exists(file_path):
+                shutil.rmtree(file_path)
 
         self.tape_cassette = CachedReadOnlyS3TapeCassette(
             bucket="some_bucket",
