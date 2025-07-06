@@ -18,7 +18,7 @@ class CachedS3BasicFacade(S3BasicFacade):
             cache_path = self.DEFAULT_CACHE_PATH
         self.cache_path = cache_path
         if not os.path.exists(self.cache_path):
-            os.mkdir(self.cache_path)
+            os.makedirs(self.cache_path)
 
     def get_string(self, key):
         """
