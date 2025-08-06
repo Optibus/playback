@@ -1,6 +1,7 @@
 import os
 import logging
 from tempfile import gettempdir
+from six import PY2
 
 from playback.tape_cassettes.s3.s3_basic_facade import S3BasicFacade
 from playback.tape_cassettes.s3.s3_tape_cassette import S3TapeCassette
@@ -37,7 +38,8 @@ class CachedS3BasicFacade(S3BasicFacade):
         local_key_path = os.path.join(self.cache_path, key_file_name)
         found_locally = False
         if os.path.exists(local_key_path):
-            with open(local_key_path, "r") as fid:
+            mode = "r" if PY2 else "rb"
+            with open(local_key_path, mode) as fid:
                 raw_data = fid.read()
                 logger.info("File {} was found in local cache {}".format(key_file_name, local_key_path))
                 found_locally = True
@@ -64,7 +66,8 @@ class CachedS3BasicFacade(S3BasicFacade):
         :param raw_data: raw data to be cached
         :type raw_data: str
         """
-        with open(local_full_key_path, "w") as fid:
+        mode = "w" if PY2 else "wb"
+        with open(local_full_key_path, mode) as fid:
             fid.write(raw_data)
         logger.info("Caching in {} succeeded".format(local_full_key_path))
 
