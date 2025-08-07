@@ -1,7 +1,10 @@
 import os
 import shutil
 import tempfile
+from zlib import compress
 
+import six
+from jsonpickle import encode
 from mock import patch
 
 from playback.tape_cassettes.cached import cached_facade
@@ -20,9 +23,11 @@ class TestReadOnlyCachedS3TapeCassette(unittest.TestCase):
     def setUp(self):
         self.resource_files_path = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "cached_recordings")
         recording_file_name = "some_random_recording_id"
+        # Use Python version specific resource file
+        resource_file_name = recording_file_name + ("" if six.PY2 else "_py3")
         recording_path = "operation_name/partition_date"
         self.recording_id = os.path.join(recording_path, recording_file_name)
-        self.resource_file_location = os.path.join(self.resource_files_path, recording_file_name)
+        self.resource_file_location = os.path.join(self.resource_files_path, resource_file_name)
         self.tmp_path = tempfile.mkdtemp()
         CachedS3BasicFacade.DEFAULT_CACHE_PATH = os.path.join(self.tmp_path, "default_cache", "recordings_cache")
         self.s3_files_location = os.path.join(self.tmp_path, "s3")
@@ -58,7 +63,9 @@ class TestReadOnlyCachedS3TapeCassette(unittest.TestCase):
 
     def create_mocked_method(self):
         def mocked_method(*args, **kwargs):
-            with open(self.s3_file_path, "r") as fid:
+            # Use the same file mode as the cached facade for consistency
+            mode = "r" if six.PY2 else "rb"
+            with open(self.s3_file_path, mode) as fid:
                 return fid.read()
 
         return mocked_method
@@ -67,7 +74,10 @@ class TestReadOnlyCachedS3TapeCassette(unittest.TestCase):
         with patch.object(S3BasicFacade, "get_string", new=self.create_mocked_method()):
             recording = self.tape_cassette._s3_facade.get_string(self.recording_id)
         # Always get raw data
-        self.assertEqual(recording, "Some raw data")
+        if six.PY2:
+            self.assertEqual(recording, "Some raw data")
+        else:
+            self.assertEqual(recording, b"Some raw data")
 
 
 class TestCachedS3TapeCassetteUseCacheTrue(TestReadOnlyCachedS3TapeCassette):
@@ -180,3 +190,30 @@ class TestCreateTapeCassetteNotInReadOnlyState(unittest.TestCase):
             self.fail("CachedReadOnlyS3TapeCassette must be created in a read only state")
         except ValueError as e:
             self.assertEqual(str(e), "CachedReadOnlyS3TapeCassette is designed to be in read_only state only")
+
+
+class TestCachedS3TapeCassette(TestReadOnlyCachedS3TapeCassette):
+    """
+    Test class for CachedS3TapeCassette
+    """
+
+    def test_cached_s3_tape_cassette(self):
+        cassette = CachedReadOnlyS3TapeCassette(
+            bucket="some_bucket",
+            key_prefix="test",
+            local_path=self.cache_path,
+            use_cache=True
+        )
+
+        obj = dict(a="a", b=1)
+        encoded_full = encode(obj, unpicklable=True)
+
+        if six.PY3 and isinstance(encoded_full, str):
+            compressed_str = compress(bytes(encoded_full.encode('utf-8')))
+        else:
+            compressed_str = compress(encoded_full)
+
+        with patch.object(S3BasicFacade, "get_string", return_value=compressed_str):
+            cassette.get_recording("some_random_recording_id")
+
+        self.assertEqual(obj, cassette.get_recording("some_random_recording_id").recording_data)
