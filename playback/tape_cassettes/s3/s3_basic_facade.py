@@ -1,10 +1,9 @@
+import io
 import logging
 from functools import reduce
 from random import shuffle
 
 import boto3
-
-
 import pytz
 
 
@@ -18,6 +17,45 @@ class S3BasicFacade(object):
         logging.getLogger('urllib3').setLevel(logging.CRITICAL)
         logging.getLogger('s3transfer').setLevel(logging.CRITICAL)
         logging.getLogger('requests').setLevel(logging.CRITICAL)
+
+    def get_buffered_reader(self, key):
+        """
+        Get a buffered reader for the given key.
+
+        :param key: S3 key
+        :type key: str
+        :return: buffered reader
+        :rtype: io.BufferedReader
+        """
+        streaming_body = self.client.get_object(Bucket=self.bucket, Key=key)['Body']
+
+        # The proper implementation of the RawIOBase for StreamingBody was introduced in boto3@1.23.46,
+        # but the last version available for Python 2.7 is 1.17.112. To support Python 2 we need to access
+        # the underlying stream directly in case of the older boto3 version.
+        if not hasattr(streaming_body, 'readable'):
+            streaming_body = streaming_body._raw_stream  # pylint: disable=protected-access
+
+        return io.BufferedReader(streaming_body)
+
+    def put_buffered_reader(self, key, buffered_reader, **kwargs):
+        """
+        Put a buffered reader in S3 at the given key.
+
+        :param key: S3 key
+        :type key: str
+        :param buffered_reader: buffered reader to store in S3
+        :type buffered_reader: io.BufferedReader
+        :param kwargs: Additional params for the AWS API call
+        :type kwargs: dict
+        """
+        params = dict(
+            Bucket=self.bucket,
+            Key=key,
+            Body=buffered_reader
+        )
+        if kwargs:
+            params.update(kwargs)
+        return self.client.put_object(**params)
 
     def put_string(self, key, string, **kwargs):
         """
@@ -48,7 +86,7 @@ class S3BasicFacade(object):
         :param key: S3 key
         :type key: str
         :return: The string from S3
-        :rtype: str
+        :rtype: bytes
         """
         return self.client.get_object(Bucket=self.bucket, Key=key)['Body'].read()
 

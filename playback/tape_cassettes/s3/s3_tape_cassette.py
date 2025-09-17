@@ -3,21 +3,18 @@ from __future__ import absolute_import
 import random
 from copy import copy
 from random import Random
-from zlib import compress, decompress
 import logging
 import uuid
 from datetime import datetime, timedelta
 import json
-import six
 from jsonpickle import encode, decode
 from parse import compile  # pylint: disable=redefined-builtin
 
-
 from playback.exceptions import NoSuchRecording
+from playback.recordings.factory import get_recording_class
 from playback.tape_cassette import TapeCassette
 from playback.recordings.memory.memory_recording import MemoryRecording
 from playback.tape_cassettes.s3.s3_basic_facade import S3BasicFacade
-from playback.utils.timing_utils import Timed
 
 _logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ class S3TapeCassette(TapeCassette):
     DAY_FORMAT = '%Y%m%d'
 
     def __init__(self, bucket, key_prefix='', region=None, transient=False, read_only=True,
-                 infrequent_access_kb_threshold=None, sampling_calculator=None):
+                 infrequent_access_kb_threshold=None, sampling_calculator=None, recording_type=MemoryRecording):
         """
         :param bucket: Cassette s3 storage bucket
         :type bucket: str
@@ -64,6 +61,7 @@ class S3TapeCassette(TapeCassette):
         self._metadata_key_parser = compile(self.METADATA_KEY)
         self._recording_id_parser = compile(self.RECORDING_ID)
         self._s3_facade = S3BasicFacade(self.bucket, region=region)
+        self._recording_type = recording_type
 
     def get_recording(self, recording_id):
         """
@@ -71,24 +69,20 @@ class S3TapeCassette(TapeCassette):
         :param recording_id: If of recording to fetch
         :type recording_id: basestring
         :return: Recording of the given id
-        :rtype: playback.recordings.memory.memory_recording.MemoryRecording
+        :rtype: playback.recording.Recording
         """
         full_key = self.FULL_KEY.format(key_prefix=self.key_prefix, id=recording_id)
+        metadata = self.get_recording_metadata(recording_id)
+
+        recording_class = get_recording_class(metadata)
+
         try:
-            _logger.info(u'Fetching compressed recording using key {}'.format(full_key))
-            compressed_recording = self._s3_facade.get_string(full_key)
-            _logger.info(u'Decompressing recording of key {}'.format(full_key))
-            serialized_data = decompress(compressed_recording)
+            with self._s3_facade.get_buffered_reader(full_key) as buffered_reader:
+                return recording_class.from_buffered_reader(recording_id, buffered_reader, metadata)
         except Exception as ex:
             if 'NoSuchKey' in type(ex).__name__:
                 raise NoSuchRecording(recording_id)
             raise
-        _logger.info(u'Decoding recording of key {}'.format(full_key))
-        full_data = decode(serialized_data)
-        # Extract the meta data also in the full recording
-        metadata = full_data.pop('_metadata', {})
-        _logger.info(u'Returning recording of key {}'.format(full_key))
-        return MemoryRecording(recording_id, recording_data=full_data, recording_metadata=metadata)
 
     def get_recording_metadata(self, recording_id):
         """
@@ -115,7 +109,7 @@ class S3TapeCassette(TapeCassette):
         :param category: A category to classify the recording in (e.g operation class) (serializable)
         :type category: Any
         :return: Creates a new recording object
-        :rtype: playback.recordings.memory.memory_recording.MemoryRecording
+        :rtype: playback.recording.Recording
         """
         self._assert_not_read_only()
 
@@ -125,7 +119,7 @@ class S3TapeCassette(TapeCassette):
             id=uuid.uuid1().hex
         )
         logging.info(u'Creating a new recording with id {}'.format(_id))
-        return MemoryRecording(_id)
+        return self._recording_type.new(_id)
 
     def _assert_not_read_only(self):
         """
@@ -137,50 +131,39 @@ class S3TapeCassette(TapeCassette):
         """
         Saves given recording
         :param recording: Recording to save
-        :type recording: playback.recordings.memory.memory_recording.MemoryRecording
+        :type recording: playback.recording.Recording
         """
         self._assert_not_read_only()
-
-        full_data = copy(recording.recording_data)
-        # We put meta data also in the full recording
-        full_data['_metadata'] = recording.recording_metadata
-
-        with Timed() as timed:
-            encoded_full = encode(full_data, unpicklable=True)
-        encoding_duration = timed.duration
-
-        with Timed() as timed:
-            if six.PY3 and isinstance(encoded_full, str):
-                compressed_full = compress(bytes(encoded_full.encode('utf-8')))
-            else:
-                compressed_full = compress(encoded_full)
-        compression_duration = timed.duration
-
-        recording_size = len(compressed_full)
-
-        if not self._should_sample(recording, recording_size):
-            logging.info(u'Recording with id {} is not chosen to be sampled and is being discarded'.format(
-                recording.id))
-            return
-
-        storage_class = self._calculate_storage_class(recording_size)
 
         full_key = self.FULL_KEY.format(key_prefix=self.key_prefix, id=recording.id)
         metadata_key = self.METADATA_KEY.format(key_prefix=self.key_prefix, id=recording.id)
 
-        _logger.debug(u"Saving recording full data at bucket {} under key {}".format(self.bucket, full_key))
-        self._s3_facade.put_string(full_key, compressed_full, StorageClass=storage_class)
         # We break into two keys so we can do faster and cheap filtering based on metadata not requiring to fetch the
         # entire recording data
         _logger.debug(u"Saving recording metadata at bucket {} under key {}".format(self.bucket, metadata_key))
         self._s3_facade.put_string(metadata_key, encode(recording.recording_metadata, unpicklable=True))
-        _logger.info(
-            u"Recording saved at bucket {} under key {} "
-            u"(recording size: {:.1f}KB -compressed-> {:.1f}KB, storage class: {}, "
-            u"encoding/compression durations: {:.2f}/{:.2f})".format(
-                self.bucket, full_key,
-                len(encoded_full) / 1024.0, len(compressed_full) / 1024.0, storage_class,
-                encoding_duration, compression_duration))
+
+        with recording.as_buffered_reader() as (buffered_reader, recording_size):
+            if not self._should_sample(recording, recording_size):
+                logging.info(u'Recording with id {} is not chosen to be sampled and is being discarded'.format(
+                    recording.id))
+                return
+
+            storage_class = self._calculate_storage_class(recording_size)
+
+            _logger.debug(u"Saving recording full data at bucket {} under key {}".format(self.bucket, full_key))
+            self._s3_facade.put_buffered_reader(
+                full_key,
+                buffered_reader,
+                StorageClass=storage_class
+            )
+
+            _logger.info(
+                u"Recording saved at bucket {} under key {} "
+                u"(recording size: {:.1f}KB, storage class: {})".format(
+                    self.bucket, full_key, recording_size / 1024.0, storage_class,
+                )
+            )
 
     def _calculate_storage_class(self, recording_size):
         """

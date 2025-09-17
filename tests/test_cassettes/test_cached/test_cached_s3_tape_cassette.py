@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from io import BufferedReader, BytesIO
 from zlib import compress
 
 import six
@@ -79,12 +80,26 @@ class TestReadOnlyCachedS3TapeCassette(unittest.TestCase):
         else:
             self.assertEqual(recording, b"Some raw data")
 
+    def get_buffered_reader_and_validate_reading(self):
+        def get_buffered_reader_mock(*_args, **_kwargs):
+            return BufferedReader(BytesIO(b"Some raw data"))
+        with patch.object(S3BasicFacade, "get_buffered_reader", new=get_buffered_reader_mock):
+            recording = self.tape_cassette._s3_facade.get_buffered_reader(self.recording_id)
+
+        raw_data = recording.read()
+
+        if six.PY2:
+            self.assertEqual(raw_data, "Some raw data")
+        else:
+            self.assertEqual(raw_data, b"Some raw data")
+
 
 class TestCachedS3TapeCassetteUseCacheTrue(TestReadOnlyCachedS3TapeCassette):
     use_cache = True
 
     def _test_caching(self):
         self.get_string_and_validate_reading()
+        self.get_buffered_reader_and_validate_reading()
 
         # Always cache in full path location
         self.assertTrue(os.path.exists(self.cache_file_path))
@@ -109,6 +124,7 @@ class TestCachedS3TapeCassetteWithUseCacheFalse(TestReadOnlyCachedS3TapeCassette
 
     def _test_reading(self):
         self.get_string_and_validate_reading()
+        self.get_buffered_reader_and_validate_reading()
 
         # use_cache is False hence
         # Do not cache in full path location
@@ -179,6 +195,14 @@ class TestCachedS3TapeCassetteFailsOnCaching(TestReadOnlyCachedS3TapeCassette):
             except ValueError as e:
                 self.assertEqual(str(e), error_message)
 
+            os.remove(self.cache_file_path)
+
+            try:
+                self.get_buffered_reader_and_validate_reading()
+                self.fail("A cached error should be raised")
+            except ValueError as e:
+                self.assertEqual(str(e), error_message)
+
 
 class TestCreateTapeCassetteNotInReadOnlyState(unittest.TestCase):
     def test_create_tape_cassette_not_in_read_only_state(self):
@@ -209,11 +233,23 @@ class TestCachedS3TapeCassette(TestReadOnlyCachedS3TapeCassette):
         encoded_full = encode(obj, unpicklable=True)
 
         if six.PY3 and isinstance(encoded_full, str):
-            compressed_str = compress(bytes(encoded_full.encode('utf-8')))
+            compressed_str = compress(encoded_full.encode('utf-8'))
         else:
             compressed_str = compress(encoded_full)
 
-        with patch.object(S3BasicFacade, "get_string", return_value=compressed_str):
-            cassette.get_recording("some_random_recording_id")
+        def get_string_mock(*_args, **_kwargs):
+            return b'{"foo": "bar"}'
 
-        self.assertEqual(obj, cassette.get_recording("some_random_recording_id").recording_data)
+        def get_buffered_reader_mock(*_args, **_kwargs):
+            return BufferedReader(BytesIO(compressed_str))
+
+        with patch.object(S3BasicFacade, "get_string", new=get_string_mock):
+            with patch.object(S3BasicFacade, "get_buffered_reader", new=get_buffered_reader_mock):
+                cassette.get_recording("some_random_recording_id")
+
+        recording = cassette.get_recording("some_random_recording_id")
+
+        self.assertEqual(obj, recording.recording_data)
+        self.assertLessEqual({
+            "foo": "bar",
+        }.items(), recording.get_metadata().items())

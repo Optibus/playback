@@ -38,7 +38,7 @@ class TestAsyncTapeCassette(unittest.TestCase):
         recording = in_memory_cassette.get_recording(_id)
         self.assertEqual(2, recording.get_data('a'))
         self.assertEqual(1, recording.get_data('b'))
-        self.assertEqual({'c': 3, 'd': 4}, recording.get_metadata())
+        self.assertLessEqual(set({'c': 3, 'd': 4}.items()), set(recording.get_metadata().items()))
 
     def test_fetch_recording_operation_raising_errors_read_live_recording_works(self):
         in_memory_cassette = DelayedInMemoryTapeCassette(delay=0.1)
@@ -58,7 +58,7 @@ class TestAsyncTapeCassette(unittest.TestCase):
             recording.add_metadata({'c': 'c'})
             self.assertEqual('a', recording.get_data('a'))
             self.assertSequenceEqual(['a', 'b'], list(recording.get_all_keys()))
-            self.assertEqual({'c': 'c'}, recording.get_metadata())
+            self.assertLessEqual({'c': 'c'}.items(), recording.get_metadata().items())
         finally:
             tape_cassette.close()
 

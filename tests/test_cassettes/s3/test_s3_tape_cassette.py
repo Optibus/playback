@@ -97,11 +97,11 @@ class TestS3TapeCassette(unittest.TestCase):
         fetched_recording = self.cassette.get_recording(recording.id)
         self.assertEqual(recording.id, fetched_recording.id)
 
-        self.assertEqual(metadata, recording.get_metadata())
+        self.assertLessEqual(metadata.items(), recording.get_metadata().items())
         self.assertEqual(recording.get_metadata(), fetched_recording.get_metadata())
 
         fetched_recording_metadata = self.cassette.get_recording_metadata(recording.id)
-        self.assertEqual(metadata, fetched_recording_metadata)
+        self.assertLessEqual(metadata.items(), fetched_recording_metadata.items())
 
     def test_close_transient_true(self):
         prefix = 'tests_' + uuid.uuid1().hex
@@ -214,7 +214,7 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        assert_items_equal(self, [{'property': False}],
+        assert_items_equal(self, [{'_recording_type': 'memory', 'property': False}],
                            list(self.cassette.iter_recordings_metadata(
                                category='test_operation1',
                                start_date=datetime.utcnow() - timedelta(hours=1),
@@ -249,11 +249,15 @@ class TestS3TapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        assert_items_equal(self, [{'property': 'val21'}],
+        assert_items_equal(self, [{'property': 'val21', '_recording_type': 'memory'}],
                            list(self.cassette.iter_recordings_metadata(category='test_operation1',
                                                                        metadata={'property': 'val2*'})))
 
-        assert_items_equal(self, [{'property': 'val11'}, {'property': 'val21'}],
+        assert_items_equal(self,
+                           [
+                                {'property': 'val11', '_recording_type': 'memory'},
+                                {'property': 'val21', '_recording_type': 'memory'}
+                           ],
                            list(self.cassette.iter_recordings_metadata(category='test_operation1',
                                                                        metadata={'property': 'val*'})))
 
@@ -328,7 +332,8 @@ class TestS3TapeCassette(unittest.TestCase):
         prefix = 'tests_' + uuid.uuid1().hex
         with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
                             infrequent_access_kb_threshold=1) as new_cassette:
-            with patch.object(new_cassette._s3_facade, 'put_string', wraps=new_cassette._s3_facade.put_string) \
+            with patch.object(new_cassette._s3_facade, 'put_buffered_reader',
+                              wraps=new_cassette._s3_facade.put_buffered_reader) \
                     as patched:
                 recording = new_cassette.create_new_recording('test_operation')
                 recording.set_data('some_data', list(range(10000)))
@@ -338,8 +343,8 @@ class TestS3TapeCassette(unittest.TestCase):
 
         with S3TapeCassette(TEST_BUCKET, key_prefix=prefix, transient=True, read_only=False,
                             infrequent_access_kb_threshold=1) as new_cassette:
-            with patch.object(new_cassette._s3_facade, 'put_string',
-                              wraps=new_cassette._s3_facade.put_string) \
+            with patch.object(new_cassette._s3_facade, 'put_buffered_reader',
+                              wraps=new_cassette._s3_facade.put_buffered_reader) \
                     as patched:
                 recording = new_cassette.create_new_recording('test_operation')
                 recording.set_data('some_data', list(range(10)))

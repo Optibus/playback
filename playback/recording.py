@@ -13,6 +13,46 @@ class Recording(object):
         self.id = _id or uuid.uuid1().hex
         self._closed = False
 
+    @staticmethod
+    @abstractmethod
+    def new(_id=None):
+        """
+        Creates a new recording instance.
+
+        :param _id: Optional ID for the recording. If not provided, a new UUID will be generated.
+        :type _id: str
+        :return: A new Recording instance.
+        :rtype: Recording
+        """
+
+    @staticmethod
+    @abstractmethod
+    def from_buffered_reader(recording_id, buffered_reader, recording_metadata):
+        """
+        Fetches, decompresses, decodes, and prepares a recording from a buffered reader.
+
+        :param recording_id: The ID of the recording to fetch.
+        :type recording_id: str
+        :param buffered_reader: A buffered reader instance to read the compressed recording data.
+        :type buffered_reader: BufferedReader
+        :param recording_metadata: Metadata that could optionally override or append to the extracted
+            metadata from the recording.
+        :type recording_metadata: dict
+        :return: A new MemoryRecording instance containing the fetched recording and its metadata.
+        :rtype: MemoryRecording
+        """
+        pass
+
+    @abstractmethod
+    def as_buffered_reader(self):
+        """
+        Gives access to the recording data as a BufferedReader.
+
+        :returns: A buffered reader instance for reading the recording data.
+        :rtype: BufferedReader
+        """
+        pass
+
     @abstractmethod
     def _set_data(self, key, value):
         """

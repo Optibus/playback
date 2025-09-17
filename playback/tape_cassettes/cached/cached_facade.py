@@ -1,7 +1,8 @@
 import os
 import logging
+import shutil
 from tempfile import gettempdir
-from six import PY2
+from io import open, BufferedReader
 
 from playback.tape_cassettes.s3.s3_basic_facade import S3BasicFacade
 from playback.tape_cassettes.s3.s3_tape_cassette import S3TapeCassette
@@ -21,6 +22,10 @@ class CachedS3BasicFacade(S3BasicFacade):
         if not os.path.exists(self.cache_path):
             os.makedirs(self.cache_path)
 
+        metadata_cache_path = os.path.join(self.cache_path, 'metadata')
+        if not os.path.exists(metadata_cache_path):
+            os.makedirs(metadata_cache_path)
+
     def get_string(self, key):
         """
         Get the string that associated with the given key from local cache. If fails for any reason
@@ -29,24 +34,21 @@ class CachedS3BasicFacade(S3BasicFacade):
         :param key: S3 key
         :type key: str
         :return: The string from S3
-        :rtype: str
+        :rtype: bytes
         """
         if not self.use_cache:
             logger.info("use_cache is False ignoring all caching mechanisms")
             return super(CachedS3BasicFacade, self).get_string(key)
-        key_file_name = os.path.basename(key)
-        local_key_path = os.path.join(self.cache_path, key_file_name)
+        local_key_path = self._get_cache_path(key)
         found_locally = False
         if os.path.exists(local_key_path):
-            mode = "r" if PY2 else "rb"
-            with open(local_key_path, mode) as fid:
+            with open(local_key_path, "rb") as fid:
                 raw_data = fid.read()
-                logger.info("File {} was found in local cache {}".format(key_file_name, local_key_path))
+                logger.info("File was found in local cache {}".format(local_key_path))
                 found_locally = True
         else:
             logger.info(
-                "File {} does not exist locally at {}, trying to fetch from S3".format(key_file_name,
-                                                                                       local_key_path)
+                "File does not exist locally at {}, trying to fetch from S3".format(local_key_path)
             )
             raw_data = super(CachedS3BasicFacade, self).get_string(key)
         try:
@@ -57,6 +59,38 @@ class CachedS3BasicFacade(S3BasicFacade):
             logger.info("Caching mechanism failed caching_error: {}".format(caching_error))
         return raw_data
 
+    def get_buffered_reader(self, key):
+        """
+        Get the object that associated with the given key from local cache. If fails for any reason
+        fall back to fetching from S3 store.
+        """
+        if not self.use_cache:
+            logger.info("use_cache is False ignoring all caching mechanisms")
+            return super(CachedS3BasicFacade, self).get_buffered_reader(key)
+        local_key_path = self._get_cache_path(key)
+        found_locally = False
+        if os.path.exists(local_key_path):
+            raw_data = open(local_key_path, "rb")
+            logger.info("File was found in local cache {}".format(local_key_path))
+            found_locally = True
+        else:
+            logger.info(
+                "File does not exist locally at {}, trying to fetch from S3".format(local_key_path)
+            )
+            raw_data = super(CachedS3BasicFacade, self).get_buffered_reader(key)
+        try:
+            if not found_locally:
+                self.cache_data_in_local_path(local_key_path, raw_data)
+                # we need to open the file again, since the original stream has been consumed
+                return open(local_key_path, "rb")
+        # We want a cache fail proof mechanism hence we catch any exception report it and ignore the failure.
+        except Exception as caching_error:   # pylint: disable=broad-except
+            # at this point we don't know if the stream was consumed or not, so we need to get the data again
+            raw_data = super(CachedS3BasicFacade, self).get_buffered_reader(key)
+            logger.info("Caching mechanism failed caching_error: {}".format(caching_error))
+
+        return raw_data
+
     @staticmethod
     def cache_data_in_local_path(local_full_key_path, raw_data):
         """
@@ -64,12 +98,26 @@ class CachedS3BasicFacade(S3BasicFacade):
         :param local_full_key_path: path for local cache
         :type local_full_key_path: str
         :param raw_data: raw data to be cached
-        :type raw_data: str
+        :type raw_data: bytes | BufferedReader
         """
-        mode = "w" if PY2 else "wb"
-        with open(local_full_key_path, mode) as fid:
-            fid.write(raw_data)
+        with open(local_full_key_path, 'wb') as fid:
+            if isinstance(raw_data, BufferedReader):
+                with raw_data:
+                    shutil.copyfileobj(raw_data, fid)
+            else:
+                fid.write(raw_data)
         logger.info("Caching in {} succeeded".format(local_full_key_path))
+
+    def _get_cache_path(self, key):
+        recording_id = os.path.basename(key)
+        # metadata should be cached separately from the main recording, so we need to detect
+        # it and prepare the cache path accordingly
+        if 'metadata' in key:
+            path_suffix = "metadata/{}".format(recording_id)
+        else:
+            path_suffix = recording_id
+
+        return os.path.join(self.cache_path, path_suffix)
 
 
 class CachedReadOnlyS3TapeCassette(S3TapeCassette):
