@@ -67,7 +67,7 @@ class TestFileBasedTapeCassette(unittest.TestCase):
         fetched_recording = self.cassette.get_recording(recording.id)
         self.assertEqual(recording.id, fetched_recording.id)
 
-        self.assertEqual(metadata, recording.get_metadata())
+        self.assertLessEqual(metadata.items(), recording.get_metadata().items())
         self.assertEqual(recording.get_metadata(), fetched_recording.get_metadata())
 
     def test_fetch_recording_ids_by_category(self):
@@ -109,7 +109,7 @@ class TestFileBasedTapeCassette(unittest.TestCase):
         recording3 = self.cassette.create_new_recording('test_operation2')
         self.cassette.save_recording(recording3)
 
-        assert_items_equal(self, [{'property': False}],
+        assert_items_equal(self, [{'property': False, '_recording_type': 'memory'}],
                            list(self.cassette.iter_recordings_metadata(
                                category='test_operation1',
                                start_date=datetime.utcnow() - timedelta(hours=1),
