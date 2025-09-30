@@ -1,7 +1,6 @@
 import io
 import os
 import shutil
-import sqlite3
 import tempfile
 from contextlib import contextmanager, closing
 
@@ -45,6 +44,8 @@ class SqliteRecording(Recording):
 
     @contextmanager
     def _connection(self):
+        # the sqlite3 module is imported locally only when needed because it can cause issues on some platforms
+        import sqlite3  # pylint: disable=import-outside-toplevel
         # Set the isolation level to None to enable autocommit.
         # Wrapped in closing, because the sqlite3.connect context manager does not close the connection, which
         # leads to increased memory usage.
