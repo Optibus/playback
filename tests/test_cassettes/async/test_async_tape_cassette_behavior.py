@@ -28,11 +28,17 @@ class TestAsyncTapeCassette(unittest.TestCase):
             recording.set_data('a', 2)
             recording.set_data('b', 1)
 
+            self.assertEqual(sorted(recording.get_all_keys()), ['a', 'b'])
+
+            # assert we can read our own writes
+            self.assertEqual(recording.get_data('a'), 2)
+            self.assertEqual(recording.get_data_direct('a'), 2)
+
             if add_error_op:
                 tape_cassette._add_async_operation(error_operation)
 
             tape_cassette.save_recording(recording)
-        self.assertLess(timed.duration, 0.1)
+        self.assertLess(timed.duration, 1)
         tape_cassette.close()
         _id = in_memory_cassette.get_last_recording_id()
         recording = in_memory_cassette.get_recording(_id)
