@@ -33,6 +33,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Optibus/playback",
     packages=setuptools.find_packages(),
+    setup_requires=[
+        'setuptools==80.9.0 ; python_version >= "3.10"'
+    ],
     install_requires=[
         'parse==1.6.6',
         'jsonpickle==0.9.3',
