@@ -148,11 +148,13 @@ class TapeRecorder(object):
         """
         metadata[TapeRecorder.DURATION] = duration
         metadata[TapeRecorder.RECORDED_AT] = str(datetime.utcnow())
-        outputs = TapeRecorder._extract_recorded_output(recording, direct_access=True)
+        # In this method we only need to examine the recording keys, so we are not fetching the full recorded output
+        # which can potentially require thread synchronization if the `AsyncTapeCasset` is being used.
+        output_keys = TapeRecorder._extract_recorded_output_keys(recording)
         # Check if the operation has completed by checking if we have operation output recorded, if not it means
         # the operation method didn't complete and regular exception was not caught
         # (this will happen when BaseException is raised such as KeyboardInterrupt, SystemExit)
-        incomplete = not any(TapeRecorder.OPERATION_OUTPUT_ALIAS in o.key for o in outputs)
+        incomplete = not any(TapeRecorder.OPERATION_OUTPUT_ALIAS in key for key in output_keys)
         metadata[TapeRecorder.INCOMPLETE_RECORDING] = incomplete
         if post_operation_metadata_extractor:
             try:
@@ -903,6 +905,17 @@ class TapeRecorder(object):
         return Playback(playback_outputs, playback_duration, recorded_outputs, recorded_duration, recording)
 
     @staticmethod
+    def _extract_recorded_output_keys(recording):
+        """
+        Extracts the output keys from the given recording
+        :param recording: Recording to extract the output keys from
+        :type recording: playback.tape_cassette.Recording
+        :return: Output keys
+        :rtype: list of basestring
+        """
+        return [key for key in recording.get_all_keys() if key.startswith('output:') and not key.endswith('result')]
+
+    @staticmethod
     def _extract_recorded_output(recording, direct_access=False):
         """
         :param recording:
@@ -912,8 +925,7 @@ class TapeRecorder(object):
         :return: List of output objects
         :rtype: list of Output
         """
-        all_output_keys = [key for key in recording.get_all_keys() if key.startswith('output:') and
-                           not key.endswith('result')]
+        all_output_keys = TapeRecorder._extract_recorded_output_keys(recording)
         return [Output(key, (recording.get_data if not direct_access else recording.get_data_direct)(key))
                 for key in all_output_keys]
 
