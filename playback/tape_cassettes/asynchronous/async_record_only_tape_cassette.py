@@ -1,5 +1,7 @@
 import logging
-from threading import Event, Lock, Thread
+import queue
+from threading import Event, Thread
+
 from playback.recordings.memory.memory_recording import MemoryRecording
 from playback.tape_cassette import TapeCassette
 
@@ -24,9 +26,8 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         self.wrapped_tape_cassette = tape_cassette
         self._flush_interval = flush_interval
         self._timeout_on_close = timeout_on_close
-        self._recording_operation_buffer = []
         self._stop_event = Event()
-        self._lock = Lock()
+        self._operations_queue = queue.Queue()
         self._update_recording_thread = Thread(target=self._recording_loop, name="AsyncTapeCassette Thread")
         self._update_recording_thread.setDaemon(True)
         self._started = False
@@ -75,7 +76,11 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         assert self._started, "Recording thread is not running"
         # The assumption is that create new recording is not a long running task and hence we can do it synchronously,
         # if that will not be the case the creation it self needs to become async as well
-        return AsyncRecording(self.wrapped_tape_cassette.create_new_recording(category), self._add_async_operation)
+        return AsyncRecording(
+            self.wrapped_tape_cassette.create_new_recording(category),
+            self._add_async_operation,
+            self._wait_for_flush
+        )
 
     def _add_async_operation(self, func):
         """
@@ -83,8 +88,16 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         :param func: Operation to execute
         :type func: function
         """
-        with self._lock:
-            self._recording_operation_buffer.append(func)
+        self._operations_queue.put(func)
+
+    def _wait_for_flush(self):
+        """
+        Waits for the completion of all operations in the operations queue.
+
+        This method blocks the execution until all tasks in the operations queue
+        have been processed and marked as complete.
+        """
+        self._operations_queue.join()
 
     def _save_recording(self, recording):
         """
@@ -102,6 +115,7 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
         while not self._stop_event.is_set():
             self._flush_recording()
             self._stop_event.wait(self._flush_interval)
+
         _logger.info('Async recording thread signaled to stop thread, flushing any pending recording')
 
         # Flush any pending recording
@@ -110,21 +124,24 @@ class AsyncRecordOnlyTapeCassette(TapeCassette):
 
     def _flush_recording(self):
         """
-        Flush current pending recording to the underlying storage, this method is blocking till recording is done
+        Flush current pending operations to the underlying storage. This method is blocking till all pending operations
+        are executed.
         """
-        # We don't want to keep the lock while doing actual recording, hence we copy the buffer state and release
-        # the lock
         _logger.debug('Flushing pending recording operations')
-        with self._lock:
-            current_flushed_operations = self._recording_operation_buffer
-            self._recording_operation_buffer = []
-
-        # Execute actual recording
-        for recording_operation in current_flushed_operations:
+        while True:
             try:
-                recording_operation()
-            except Exception as ex:  # pylint: disable=broad-except
-                _logger.exception(u"Error running recording operation - {}".format(ex))
+                operation = self._operations_queue.get_nowait()
+
+                try:
+                    operation()
+                except Exception as ex:  # pylint: disable=broad-except
+                    _logger.exception(u"Error running recording operation - {}".format(ex))
+
+                # Mark the task as done. Once all tasks have been marked as completed,
+                # the join() method will return.
+                self._operations_queue.task_done()
+            except queue.Empty:
+                break
 
 
 class AsyncRecording(MemoryRecording):
@@ -133,7 +150,7 @@ class AsyncRecording(MemoryRecording):
     being able to fetch data from the recording or the metadata if needed
     """
 
-    def __init__(self, wrapped_recording, add_async_operation_callback):
+    def __init__(self, wrapped_recording, add_async_operation_callback, wait_for_flush):
         """
         :param wrapped_recording: Recording to wrap with asynchronous set data
         :type wrapped_recording: Recording
@@ -144,6 +161,7 @@ class AsyncRecording(MemoryRecording):
         super(AsyncRecording, self).__init__(wrapped_recording.id)
         self.wrapped_recording = wrapped_recording
         self._add_async_operation_callback = add_async_operation_callback
+        self._wait_for_flush = wait_for_flush
 
     def _set_data(self, key, value):
         """
@@ -153,7 +171,10 @@ class AsyncRecording(MemoryRecording):
         :param value: data value (serializable)
         :type value: Any
         """
-        super(AsyncRecording, self)._set_data(key, value)
+        # We don't want to save the intercepted value in the AsyncRecording itself to not consume memory.
+        # If needed, the data can be acquired from the wrapped "real" recording. But we are setting en empty value
+        # so that the call to `get_all_keys` can still be done without the need of flushing the wrapped recording.
+        super(AsyncRecording, self)._set_data(key, None)
         self._add_async_operation_callback(lambda: self.wrapped_recording.set_data(key, value))
 
     def _add_metadata(self, metadata):
@@ -163,3 +184,15 @@ class AsyncRecording(MemoryRecording):
         """
         super(AsyncRecording, self)._add_metadata(metadata)
         self._add_async_operation_callback(lambda: self.wrapped_recording.add_metadata(metadata))
+
+    def get_data(self, key):
+        # The operation setting the data was scheduled for execution asynchronously, hence we need to wait for it to
+        # complete before fetching the data from the recording.
+        self._wait_for_flush()
+        return self.wrapped_recording.get_data(key)
+
+    def get_data_direct(self, key):
+        # The operation setting the data was scheduled for execution asynchronously, hence we need to wait for it to
+        # complete before fetching the data from the recording.
+        self._wait_for_flush()
+        return self.wrapped_recording.get_data_direct(key)
