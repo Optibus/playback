@@ -62,7 +62,7 @@ jobs:
       - checkout
       - run:
           command: |
-            sudo pip install twine
+            pip install twine build==1.3.0
       - run:
           name: verify git tag vs. version
           command: python setup.py verify
@@ -75,8 +75,7 @@ jobs:
       - run:
           name: create packages
           command: |
-            sudo python setup.py sdist
-            sudo python setup.py bdist_wheel
+            python -m build --sdist --wheel .
       - run:
           name: upload to pypi
           command: |
