@@ -38,7 +38,7 @@ setuptools.setup(
     ],
     install_requires=[
         'parse==1.6.6',
-        'jsonpickle==0.9.3',
+        'jsonpickle==0.9.4',
         'six>=1.15.0',
         'contextlib2==0.6.0',
         'decorator==4.4.2'

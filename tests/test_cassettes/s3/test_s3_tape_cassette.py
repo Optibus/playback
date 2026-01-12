@@ -67,6 +67,34 @@ class TestS3TapeCassette(unittest.TestCase):
         assert_items_equal(self, ['key1', 'key2'], recording.get_all_keys())
         assert_items_equal(self, recording.get_all_keys(), fetched_recording.get_all_keys())
 
+    def test_create_save_and_fetch_recording_with_binary_data_with_mixed_line_endings_leading_LF(self):
+        recording = self.cassette.create_new_recording('test_operation')
+        recording.set_data('key', b'\n\r\n')
+        self.cassette.save_recording(recording)
+        fetched_recording = self.cassette.get_recording(recording.id)
+        self.assertEqual(recording.id, fetched_recording.id)
+
+        self.assertEqual(b'\n\r\n', recording.get_data('key'))
+        self.assertEqual(b'\n\r\n', recording['key'])
+        self.assertEqual(recording.get_data('key'), fetched_recording.get_data('key'))
+
+        assert_items_equal(self, ['key'], recording.get_all_keys())
+        assert_items_equal(self, recording.get_all_keys(), fetched_recording.get_all_keys())
+
+    def test_create_save_and_fetch_recording_with_binary_data_with_mixed_line_endings_leading_CRLF(self):
+        recording = self.cassette.create_new_recording('test_operation')
+        recording.set_data('key', b'\r\n\n')
+        self.cassette.save_recording(recording)
+        fetched_recording = self.cassette.get_recording(recording.id)
+        self.assertEqual(recording.id, fetched_recording.id)
+
+        self.assertEqual(b'\r\n\n', recording.get_data('key'))
+        self.assertEqual(b'\r\n\n', recording['key'])
+        self.assertEqual(recording.get_data('key'), fetched_recording.get_data('key'))
+
+        assert_items_equal(self, ['key'], recording.get_all_keys())
+        assert_items_equal(self, recording.get_all_keys(), fetched_recording.get_all_keys())
+
     def test_get_recording_and_get_recording_metadata_non_existing(self):
         with self.assertRaises(NoSuchRecording):
             self.cassette.get_recording('non existing id')
