@@ -1,4 +1,8 @@
 from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Tuple, Dict
 
 
 class InputInterceptionDataHandler(object):
@@ -8,7 +12,13 @@ class InputInterceptionDataHandler(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def prepare_input_for_recording(self, interception_key, result, args, kwargs):
+    def prepare_input_for_recording(
+        self,
+        interception_key,  # type: str
+        result,  # type: Any
+        args,  # type: Tuple
+        kwargs  # type: Dict
+    ):  # type: (...) -> Any
         """
         Prepare the input result that should be saved in the recording
         :param interception_key: Input interception key
@@ -25,7 +35,12 @@ class InputInterceptionDataHandler(object):
         pass
 
     @abstractmethod
-    def restore_input_from_recording(self, recorded_data, args, kwargs):
+    def restore_input_from_recording(
+        self,
+        recorded_data,  # type: Any
+        args,  # type: Tuple
+        kwargs  # type: Dict
+    ):  # type: (...) -> Any
         """
         Restore the actual input from the recording
         :param recorded_data: Recorded data provided by the prepare method

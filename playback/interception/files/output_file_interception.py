@@ -6,7 +6,9 @@ class OutputInterceptionFileDataHandler(OutputInterceptionDataHandler, FileInter
     """
     Intercept file arguments for playback
     """
+
     def prepare_output_for_recording(self, interception_key, args, kwargs):
+        # type: (str, tuple, dict) -> dict
         """
         Reads the intercepted file, encode its content as string and return it ready for recording
         :param interception_key: Input interception key
@@ -21,6 +23,7 @@ class OutputInterceptionFileDataHandler(OutputInterceptionDataHandler, FileInter
         return self._intercept_file(args, kwargs)
 
     def restore_output_from_recording(self, recorded_data):
+        # type: (object) -> InterceptedOutputFileHolder
         """
         Create a file from the recorded content and place it in the given file path
         :param recorded_data: Recorded data provided by the prepare method
@@ -36,7 +39,9 @@ class InterceptedOutputFileHolder(object):
     """
     Holds intercepted output file content
     """
+
     def __init__(self, file_content, output_file_path):
+        # type: (str, str) -> None
         """
         :param file_content: File content as string
         :type file_content: basestring
@@ -47,6 +52,7 @@ class InterceptedOutputFileHolder(object):
         self.output_file_path = output_file_path
 
     def to_file(self, file_path):
+        # type: (str) -> None
         """
         Writes the output file content to the given file path
         :param file_path: Path to write the content to

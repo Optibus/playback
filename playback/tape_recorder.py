@@ -2,12 +2,15 @@
 # pylint: disable=broad-except
 # pylint: disable=too-many-lines
 from __future__ import absolute_import
+
+import sys
 from collections import namedtuple, Counter
 import logging
 from random import Random
 from datetime import datetime
 from time import time
 import threading
+from typing import TYPE_CHECKING
 from jsonpickle import encode
 from decorator import contextmanager
 
@@ -15,6 +18,24 @@ from playback.exceptions import InputInterceptionKeyCreationError, OperationExce
     TapeRecorderException, RecordingKeyError
 from playback.utils.is_iterable import is_iterable
 from playback.utils.pickle_copy import pickle_copy
+
+if TYPE_CHECKING:
+    from typing import Optional, Callable, Any, List, Union, Generator
+
+    from playback.interception.input_interception import InputInterceptionDataHandler
+    from playback.interception.output_interception import OutputInterceptionDataHandler
+    from playback.recording import Recording
+    from playback.tape_cassette import TapeCassette
+
+    if sys.version_info[:2] >= (3, 10):
+        # Pylint tries to find the ParamSpec and TypeVar in Python 3.7, it ignores the above guard
+        from typing import ParamSpec, TypeVar  # pylint: disable=no-name-in-module
+        Param = ParamSpec("Param")
+        RetType = TypeVar("RetType")
+    else:
+        Param = Any
+        RetType = Any
+
 
 _logger = logging.getLogger(__name__)
 
@@ -34,6 +55,7 @@ class TapeRecorder(object):
     INCOMPLETE_RECORDING = '_tape_recorder_incomplete_recording'
 
     def __init__(self, tape_cassette, random_seed=None):
+        # type: (TapeCassette, Optional[int]) -> None
         """
         :param tape_cassette: The storage driver to hold the recording in
         :type tape_cassette: playback.tape_cassette.TapeCassette
@@ -54,6 +76,7 @@ class TapeRecorder(object):
 
     @contextmanager
     def start_recording(self, category, metadata, post_operation_metadata_extractor=None):
+        # type: (Any, dict[str, Any], Optional[Callable[[], dict[str, Any]]]) -> Generator[None, None, None]
         """
         Starts a recording scope
         :param post_operation_metadata_extractor: Callback used to extract extra metadata once the operation
@@ -104,6 +127,7 @@ class TapeRecorder(object):
                             category, recording.id))
 
     def discard_recording(self):
+        # type: () -> None
         """
         Discards currently active recording process
         """
@@ -114,6 +138,7 @@ class TapeRecorder(object):
             self._reset_active_recording()
 
     def force_sample_recording(self):
+        # type: () -> None
         """
         Make sure currently active recording will be sampled (unless explicitly discarded or set to ignore enforcement)
         """
@@ -126,6 +151,7 @@ class TapeRecorder(object):
 
     @property
     def is_recording_sample_forced(self):
+        # type: () -> bool
         """
         :return: If current recording sampling is enforced, meaning it should be kept regardless of any sampling
         calculation
@@ -234,6 +260,7 @@ class TapeRecorder(object):
         self._record_data(interception_key, value)
 
     def enable_recording(self):
+        # type: () -> None
         """
         Enable recording and interception for all decorated places
         """
@@ -241,6 +268,7 @@ class TapeRecorder(object):
         self.recording_enabled = True
 
     def disable_recording(self):
+        # type: () -> None
         """
         Disable recording of all interception in all decorated places
         """
@@ -249,6 +277,7 @@ class TapeRecorder(object):
 
     @property
     def in_recording_mode(self):
+        # type: () -> bool
         """
         :return: Is in recording mode
         :rtype: bool
@@ -257,6 +286,7 @@ class TapeRecorder(object):
 
     @property
     def in_playback_mode(self):
+        # type: () -> bool
         """
         :return: Is in playback mode
         :rtype: bool
@@ -265,9 +295,10 @@ class TapeRecorder(object):
 
     @property
     def current_recording_id(self):
+        # type: () -> Optional[str]
         """
         :return: Returns the id of recording in the current context or None if there is no such recording
-        :rtype: basestring or None
+        :rtype: Optional[str]
         """
         if self.in_recording_mode:
             return self._active_recording.id
@@ -304,6 +335,7 @@ class TapeRecorder(object):
         return not self._currently_in_interception and (self.in_recording_mode or self.in_playback_mode)
 
     def operation(self, metadata_extractor=None):
+        # type: (Optional[Callable[..., Any]]) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         :param metadata_extractor: Extracts metadata from the operation when an invocation is recorded
         :type metadata_extractor: function
@@ -313,6 +345,7 @@ class TapeRecorder(object):
         return self._operation(class_function=False, metadata_extractor=metadata_extractor)
 
     def recording_params(self, recording_parameters=None, **kwargs):
+        # type: (Optional[RecordingParameters], ...) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         :param recording_parameters: Recording Parameters objects for this operation
         :type sampling_rate: RecordingParameters
@@ -327,6 +360,7 @@ class TapeRecorder(object):
         return wrapper
 
     def class_operation(self, metadata_extractor=None):
+        # type: (Optional[Callable[..., Any]]) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         :param metadata_extractor: Extracts metadata from the operation when an invocation is recorded
         :type metadata_extractor: function
@@ -451,6 +485,7 @@ class TapeRecorder(object):
             return {'error_type': type(exception), 'error_repr': repr(exception)}
 
     def record_data(self, key, value):
+        # type: (str, Any) -> None
         """
         Record given data if in recording mode
         :param key: Data recording key
@@ -464,6 +499,7 @@ class TapeRecorder(object):
         self._record_data(key, value)
 
     def play_data(self, key):
+        # type: (str) -> Any
         """
         Play recorded data if in playback mode
         :param key: Recorded data key
@@ -477,8 +513,16 @@ class TapeRecorder(object):
 
         return self._playback_recording.get_data(key)
 
-    def static_intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                               run_intercepted_when_missing=False, value_when_missing=None, fallback_aliases=None):
+    def static_intercept_input(
+        self,
+        alias,  # type: str
+        alias_params_resolver=None,  # type: Optional[Callable[..., Any]]
+        data_handler=None,  # type: Optional[InputInterceptionDataHandler]
+        capture_args=None,  # type: Optional[List[CapturedArg]]
+        run_intercepted_when_missing=False,  # type: bool
+        value_when_missing=None,  # type: Optional[Union[Callable[..., Any], Any]]
+        fallback_aliases=None  # type: Optional[Union[List[str], Callable[..., List[str]]]]
+    ):  # type: (...) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         Decorates a static function that acts as an input to the operation, the result of the function is
         the  recorded input and the passed arguments and function name (or alias) or used as key for the input
@@ -514,36 +558,37 @@ class TapeRecorder(object):
                                      run_intercepted_when_missing, value_when_missing, fallback_aliases,
                                      static_function=True)
 
-    def intercept_input(self, alias, alias_params_resolver=None, data_handler=None, capture_args=None,
-                        run_intercepted_when_missing=False, value_when_missing=None, fallback_aliases=None):
+    def intercept_input(
+        self,
+        alias,  # type: str
+        alias_params_resolver=None,  # type: Optional[Callable[..., Any]]
+        data_handler=None,  # type: Optional[InputInterceptionDataHandler]
+        capture_args=None,  # type: Optional[List[CapturedArg]]
+        run_intercepted_when_missing=False,  # type: bool
+        value_when_missing=None,  # type: Optional[Union[Callable[..., Any], Any]]
+        fallback_aliases=None  # type: Optional[Union[List[str], Callable[..., List[str]]]]
+    ):  # type: (...) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         Decorates a function that that acts as an input to the operation, the result of the function is the
         recorded input and the passed arguments and function name (or alias) or used as key for the input
         :param alias: Input alias, used to uniquely identify the input function, hence the name should be unique across
         all relevant inputs this operation can reach. This should be renamed as it will render previous recording
         useless
-        :type alias: str
         :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given,
         this is useful when you have the same input method invoked many times with the same arguments on different class
         instances
-        :type alias_params_resolver: function
         :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
         when default pickle serialization is not enough
-        :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
         :param capture_args: If a list is given, it will annotate which arg indices and/or names should be
         captured as part of the intercepted key (invocation identification). If None, all args are captured
-        :type capture_args: list of CapturedArg
         :param run_intercepted_when_missing: If no matching content is found on recording during playback,
         run the original intercepted method
-        :type run_intercepted_when_missing: bool
         :param value_when_missing: If no matching content is found, returns the given value instead. If the given value
         is a function, it will be invoked with the arguments passed to the intercepted method and the invocation value
         will be returned
-        :type value_when_missing: function or Any
         :param fallback_aliases: A list of fallback aliases or a function returning such a list. These aliases will be
         used to find the data in the recording in case when there are no results for the main alias. Useful if the main
         alias was changed (for example, due to a refactoring), but old recordings should still be playbable.
-        :type fallback_aliases: function or list of str
         :return: Decorated function
         :rtype: function
         """
@@ -551,8 +596,13 @@ class TapeRecorder(object):
                                      run_intercepted_when_missing, value_when_missing, fallback_aliases,
                                      static_function=False)
 
-    def static_intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
-                                default_result_when_not_recorded=None):
+    def static_intercept_output(
+        self,
+        alias,  # type: str
+        data_handler=None,  # type: Optional[OutputInterceptionDataHandler]
+        fail_on_no_recorded_result=True,  # type: bool
+        default_result_when_not_recorded=None  # type: Optional[Union[Callable[..., Any], Any]]
+    ):  # type: (...) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         Decorates a static function that that acts as an output of the operation, the arguments are recorded as the
         output and the result of the function is captured
@@ -577,8 +627,13 @@ class TapeRecorder(object):
         return self._intercept_output(alias, data_handler, fail_on_no_recorded_result, default_result_when_not_recorded,
                                       static_function=True)
 
-    def intercept_output(self, alias, data_handler=None, fail_on_no_recorded_result=True,
-                         default_result_when_not_recorded=None):
+    def intercept_output(
+        self,
+        alias,  # type: str
+        data_handler=None,  # type: Optional[OutputInterceptionDataHandler]
+        fail_on_no_recorded_result=True,  # type: bool
+        default_result_when_not_recorded=None  # type: Optional[Union[Callable[..., Any], Any]]
+    ):  # type: (...) -> Callable[[Callable[Param, RetType]], Callable[Param, RetType]]
         """
         Decorates a function that that acts as an output of the operation, the arguments are recorded as the output and
         the result of the function is captured
@@ -873,6 +928,7 @@ class TapeRecorder(object):
         return result
 
     def play(self, recording_id, playback_function):
+        # type: (str, Callable[[Recording], Any]) -> Playback
         """
         Play again the recorder operation on current code
         :param recording_id: Id of the recording
