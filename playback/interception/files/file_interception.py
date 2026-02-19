@@ -2,6 +2,8 @@ from __future__ import absolute_import
 import logging
 import os
 import base64
+from typing import Optional
+
 import six
 from playback.utils.timing_utils import Timed
 
@@ -13,6 +15,7 @@ class FileInterception(object):
     ABOVE_LIMIT_CONTENT = six.b('above interception limit')
 
     def __init__(self, file_path_arg_index, file_path_arg_name, intercepted_size_limit=None):
+        # type: (int, str, Optional[float]) -> None
         """
         :param file_path_arg_index: The index inside arguments that points to the file path that needs to be intercepted
         :type file_path_arg_index: int

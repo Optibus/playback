@@ -7,6 +7,7 @@ class InputInterceptionFileDataHandler(InputInterceptionDataHandler, FileInterce
     Intercept file arguments for playback
     """
     def prepare_input_for_recording(self, interception_key, result, args, kwargs):
+        # type: (str, object, tuple, dict) -> dict
         """
         Reads the intercepted file, encode its content as string and return it ready for recording
         :param interception_key: Input interception key
@@ -23,6 +24,7 @@ class InputInterceptionFileDataHandler(InputInterceptionDataHandler, FileInterce
         return self._intercept_file(args, kwargs)
 
     def restore_input_from_recording(self, recorded_data, args, kwargs):
+        # type: (object, tuple, dict) -> str
         """
         Create a file from the recorded content and place it in the given file path
         :param recorded_data: Recorded data provided by the prepare method
