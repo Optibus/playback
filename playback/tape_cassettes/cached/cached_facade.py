@@ -1,6 +1,6 @@
 import os
 import logging
-import shutil
+import tempfile
 from tempfile import gettempdir
 from io import open, BufferedReader
 
@@ -95,17 +95,27 @@ class CachedS3BasicFacade(S3BasicFacade):
     def cache_data_in_local_path(local_full_key_path, raw_data):
         """
          Cache raw_data in local path local_full_key_path
+
+        Uses atomic write (write to temp file, then rename) to prevent zero-size
+        cache files when the write fails partway through. Reads streams into memory
+        first to avoid compatibility issues with io.BufferedReader wrapping objects
+        that don't fully implement RawIOBase (e.g. boto3 StreamingBody on PyPy3
+        which lacks readinto()).
+
         :param local_full_key_path: path for local cache
         :type local_full_key_path: str
         :param raw_data: raw data to be cached
         :type raw_data: bytes | BufferedReader
         """
-        with open(local_full_key_path, 'wb') as fid:
-            if isinstance(raw_data, BufferedReader):
-                with raw_data:
-                    shutil.copyfileobj(raw_data, fid)
-            else:
-                fid.write(raw_data)
+        data = raw_data.read() if hasattr(raw_data, 'read') else raw_data
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(local_full_key_path))
+        try:
+            with os.fdopen(tmp_fd, 'wb') as fid:
+                fid.write(data)
+            os.rename(tmp_path, local_full_key_path)
+        except BaseException:
+            os.unlink(tmp_path)
+            raise
         logger.info("Caching in {} succeeded".format(local_full_key_path))
 
     def _get_cache_path(self, key):
