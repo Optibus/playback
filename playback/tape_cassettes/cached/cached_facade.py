@@ -2,7 +2,7 @@ import os
 import logging
 import tempfile
 from tempfile import gettempdir
-from io import open, BufferedReader
+from io import open
 
 from playback.tape_cassettes.s3.s3_basic_facade import S3BasicFacade
 from playback.tape_cassettes.s3.s3_tape_cassette import S3TapeCassette
