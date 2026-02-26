@@ -204,6 +204,64 @@ class TestCachedS3TapeCassetteFailsOnCaching(TestReadOnlyCachedS3TapeCassette):
                 self.assertEqual(str(e), error_message)
 
 
+class TestCacheDataAtomicWrite(TestReadOnlyCachedS3TapeCassette):
+    """Test that cache_data_in_local_path uses atomic writes and handles non-BufferedReader streams."""
+
+    def test_cache_from_bytes(self):
+        """Test caching raw bytes data."""
+        data = b"Some raw data"
+        CachedS3BasicFacade.cache_data_in_local_path(self.cache_file_path, data)
+        with open(self.cache_file_path, "rb") as fid:
+            self.assertEqual(fid.read(), data)
+
+    def test_cache_from_buffered_reader(self):
+        """Test caching from a BufferedReader."""
+        data = b"Some raw data"
+        reader = BufferedReader(BytesIO(data))
+        CachedS3BasicFacade.cache_data_in_local_path(self.cache_file_path, reader)
+        with open(self.cache_file_path, "rb") as fid:
+            self.assertEqual(fid.read(), data)
+
+    def test_cache_from_stream_without_readinto(self):
+        """Test caching from a stream that has read() but not readinto() (e.g. boto3 StreamingBody on PyPy3)."""
+        class FakeStreamingBody(object):
+            def __init__(self, content):
+                self._content = content
+                self._pos = 0
+
+            def read(self, amt=None):
+                if amt is None:
+                    data = self._content[self._pos:]
+                    self._pos = len(self._content)
+                else:
+                    data = self._content[self._pos:self._pos + amt]
+                    self._pos += len(data)
+                return data
+
+            def readable(self):
+                return True
+
+        data = b"Some raw data from streaming body"
+        stream = FakeStreamingBody(data)
+        self.assertFalse(hasattr(stream, 'readinto'))
+
+        CachedS3BasicFacade.cache_data_in_local_path(self.cache_file_path, stream)
+        with open(self.cache_file_path, "rb") as fid:
+            self.assertEqual(fid.read(), data)
+
+    def test_no_zero_size_file_on_write_failure(self):
+        """Test that a failed write does not leave a zero-size file."""
+        class FailingReader(object):
+            def read(self, amt=None):
+                raise IOError("simulated read failure")
+
+        try:
+            CachedS3BasicFacade.cache_data_in_local_path(self.cache_file_path, FailingReader())
+        except IOError:
+            pass
+        self.assertFalse(os.path.exists(self.cache_file_path))
+
+
 class TestCreateTapeCassetteNotInReadOnlyState(unittest.TestCase):
     def test_create_tape_cassette_not_in_read_only_state(self):
         try:
