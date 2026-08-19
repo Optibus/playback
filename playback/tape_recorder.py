@@ -9,13 +9,14 @@ import logging
 from random import Random
 from datetime import datetime
 from time import time
-import threading
 from typing import TYPE_CHECKING
 from jsonpickle import encode
 from decorator import contextmanager
 
 from playback.exceptions import InputInterceptionKeyCreationError, OperationExceptionDuringPlayback, \
     TapeRecorderException, RecordingKeyError
+from playback.utils.interception_context import InterceptionContext
+from playback.utils.coroutine_utils import is_coroutine_function, is_unresolved_async_result
 from playback.utils.is_iterable import is_iterable
 from playback.utils.pickle_copy import pickle_copy
 
@@ -72,7 +73,7 @@ class TapeRecorder(object):
         self._classes_recording_params = {}
         self._random = Random(random_seed)
         self._force_sample = False
-        self._thread_locals = threading.local()
+        self._interception_context = InterceptionContext()
 
     @contextmanager
     def start_recording(self, category, metadata, post_operation_metadata_extractor=None):
@@ -312,10 +313,7 @@ class TapeRecorder(object):
         :return: Is currently in interception
         :rtype: bool
         """
-        if not hasattr(self._thread_locals, 'currently_in_interception'):
-            return False
-
-        return self._thread_locals.currently_in_interception
+        return self._interception_context.currently_in_interception
 
     @_currently_in_interception.setter
     def _currently_in_interception(self, value):
@@ -323,7 +321,7 @@ class TapeRecorder(object):
         :param value: Is currently in interception
         :type value: bool
         """
-        self._thread_locals.currently_in_interception = value
+        self._interception_context.currently_in_interception = value
 
     @property
     def _should_intercept(self):
@@ -440,6 +438,14 @@ class TapeRecorder(object):
                 raise OperationExceptionDuringPlayback()
 
             raise
+
+        if is_unresolved_async_result(result):
+            _logger.warning(
+                u"Operation returned {} which cannot be recorded, an operation has to resolve its coroutines before "
+                u"it returns".format(type(result).__name__))
+
+            self.discard_recording()
+            return result
 
         # We record the operation result as an output
         self._record_output(TapeRecorder.OPERATION_OUTPUT_ALIAS, invocation_number=1, args=[result],
@@ -688,23 +694,24 @@ class TapeRecorder(object):
 
         def func_decoration(func):
 
+            if is_coroutine_function(func):
+                # Imported lazily as the module holds Python 3 only syntax
+                # pylint: disable=import-outside-toplevel
+                from playback.interception.async_interception import async_output_interception
+
+                return async_output_interception(self, func, OutputInterceptionParams(
+                    alias, data_handler, fail_on_no_recorded_result, default_result_when_not_recorded,
+                    static_function))
+
             def decorated_function(*args, **kwargs):
                 if not self._should_intercept:
                     return func(*args, **kwargs)
 
-                # If same alias (function) is invoked more than once we want to track each output invocation
-                self._invoke_counter[alias] += 1
-                invocation_number = self._invoke_counter[alias]
-
-                # Both in recording and playback mode we record what is sent to the output
-                self._record_output(alias, invocation_number, args if static_function else args[1:], kwargs,
-                                    data_handler)
+                interception_key = self._record_intercepted_output(alias, data_handler, static_function, args, kwargs)
 
                 # Record output may have failed and discarded current recording which would make should intercept false
-                if not self._should_intercept:
+                if interception_key is None:
                     return func(*args, **kwargs)
-
-                interception_key = self._output_interception_key(alias, invocation_number) + '.result'
 
                 if self.in_playback_mode:
                     # Return recording of input invocation
@@ -721,6 +728,34 @@ class TapeRecorder(object):
             return decorated_function
 
         return func_decoration
+
+    def _record_intercepted_output(self, alias, data_handler, static_function, args, kwargs):
+        """
+        Records what is sent to the intercepted output, both in recording and in playback mode
+        :param alias: Output alias
+        :type alias: str
+        :param data_handler: Optional data handler that prepare and restore the output data for and from the recording
+        :type data_handler: playback.interception.output_interception.OutputInterceptionDataHandler
+        :param static_function: Is this a static function
+        :type static_function: bool
+        :param args: Invocation args
+        :type args: tuple
+        :param kwargs: Invocation kwargs
+        :type kwargs: dict
+        :return: The key the result of this invocation should be recorded under, None if recording the output has
+        failed and discarded the current recording
+        :rtype: Optional[str]
+        """
+        # If same alias (function) is invoked more than once we want to track each output invocation
+        self._invoke_counter[alias] += 1
+        invocation_number = self._invoke_counter[alias]
+
+        self._record_output(alias, invocation_number, args if static_function else args[1:], kwargs, data_handler)
+
+        if not self._should_intercept:
+            return None
+
+        return self._output_interception_key(alias, invocation_number) + '.result'
 
     def _intercept_input(self, alias, alias_params_resolver, data_handler, capture_args, run_intercepted_when_missing,
                          value_when_missing, fallback_aliases, static_function):
@@ -761,36 +796,21 @@ class TapeRecorder(object):
             if is_property:
                 func = func.__get__
 
+            if is_coroutine_function(func):
+                # Imported lazily as the module holds Python 3 only syntax
+                # pylint: disable=import-outside-toplevel
+                from playback.interception.async_interception import async_input_interception
+
+                return async_input_interception(self, func, InputInterceptionParams(
+                    alias, alias_params_resolver, data_handler, capture_args, run_intercepted_when_missing,
+                    value_when_missing, fallback_aliases, static_function))
+
             def decorated_function(*args, **kwargs):
                 if not self._should_intercept:
                     return func(*args, **kwargs)
 
-                try:
-                    formatted_alias = self._format_alias(alias, alias_params_resolver, *args, **kwargs)
-                    interception_key = self._input_interception_key(formatted_alias, capture_args,
-                                                                    static_function, *args, **kwargs)
-
-                    if callable(fallback_aliases):
-                        fallback_aliases_list = fallback_aliases(*args, **kwargs)
-                    elif is_iterable(fallback_aliases):
-                        fallback_aliases_list = fallback_aliases
-                    else:
-                        fallback_aliases_list = []
-
-                    possible_keys = [interception_key] + [self._input_interception_key(fallback_alias, capture_args,
-                                                                                       static_function, *args, **kwargs)
-                                                          for fallback_alias in fallback_aliases_list]
-                except Exception as ex:
-                    error_message = u'Input interception key creation error for alias \'{}\' - {}'.format(
-                        alias, repr(ex))
-
-                    if self.in_playback_mode:
-                        raise InputInterceptionKeyCreationError(error_message.encode('utf-8'))
-
-                    _logger.exception(error_message)
-
-                    interception_key = None
-                    self.discard_recording()
+                possible_keys, interception_key = self._resolve_input_interception_keys(
+                    alias, alias_params_resolver, capture_args, fallback_aliases, static_function, args, kwargs)
 
                 if self.in_playback_mode:
                     # Return recording of input invocation
@@ -801,9 +821,7 @@ class TapeRecorder(object):
                             # Run the original method when content was missing in recording
                             return func(*args, **kwargs)
                         if value_when_missing:
-                            if callable(value_when_missing):
-                                return value_when_missing(*args, **kwargs)
-                            return value_when_missing
+                            return self._resolve_value_when_missing(value_when_missing, args, kwargs)
                         raise
 
                 return self._execute_func_and_record_interception(func, interception_key, args, kwargs, data_handler)
@@ -811,6 +829,75 @@ class TapeRecorder(object):
             return property(decorated_function) if is_property else decorated_function
 
         return func_decoration
+
+    def _resolve_input_interception_keys(self, alias, alias_params_resolver, capture_args, fallback_aliases,
+                                         static_function, args, kwargs):
+        """
+        Creates the interception key of the given input invocation along with the keys of its fallback aliases.
+        A key creation failure discards the current recording, and fails the playback when in playback mode
+        :param alias: Input alias
+        :type alias: str
+        :param alias_params_resolver: Optional function that resolve parameters inside alias if such are given
+        :type alias_params_resolver: function
+        :param capture_args: Which arg indices and/or names should be captured as part of the intercepted key
+        :type capture_args: list of CapturedArg
+        :param fallback_aliases: A list of fallback aliases or a function returning such a list
+        :type fallback_aliases: function or list of str
+        :param static_function: Is this a static function
+        :type static_function: bool
+        :param args: Invocation args
+        :type args: tuple
+        :param kwargs: Invocation kwargs
+        :type kwargs: dict
+        :return: All the keys the recorded data can be found under and the key the data should be recorded under,
+        the latter is None when the key creation failed
+        :rtype: tuple of (list of str, Optional[str])
+        """
+        try:
+            formatted_alias = self._format_alias(alias, alias_params_resolver, *args, **kwargs)
+            interception_key = self._input_interception_key(formatted_alias, capture_args,
+                                                            static_function, *args, **kwargs)
+
+            if callable(fallback_aliases):
+                fallback_aliases_list = fallback_aliases(*args, **kwargs)
+            elif is_iterable(fallback_aliases):
+                fallback_aliases_list = fallback_aliases
+            else:
+                fallback_aliases_list = []
+
+            possible_keys = [interception_key] + [self._input_interception_key(fallback_alias, capture_args,
+                                                                               static_function, *args, **kwargs)
+                                                  for fallback_alias in fallback_aliases_list]
+        except Exception as ex:
+            error_message = u'Input interception key creation error for alias \'{}\' - {}'.format(
+                alias, repr(ex))
+
+            if self.in_playback_mode:
+                raise InputInterceptionKeyCreationError(error_message.encode('utf-8'))
+
+            _logger.exception(error_message)
+
+            self.discard_recording()
+            return [], None
+
+        return possible_keys, interception_key
+
+    @staticmethod
+    def _resolve_value_when_missing(value_when_missing, args, kwargs):
+        """
+        :param value_when_missing: A value to return or a function to invoke with the intercepted method arguments
+        :type value_when_missing: function or Any
+        :param args: Invocation args
+        :type args: tuple
+        :param kwargs: Invocation kwargs
+        :type kwargs: dict
+        :return: The value to return when no matching content was found in the recording
+        :rtype: Any
+        """
+        if callable(value_when_missing):
+            return value_when_missing(*args, **kwargs)
+
+        return value_when_missing
 
     @staticmethod
     def _format_alias(alias, alias_params_resolver, *args, **kwargs):
@@ -897,35 +984,72 @@ class TapeRecorder(object):
             try:
                 result = func(*args, **kwargs)
             except Exception as ex:
-                if interception_key is not None:
-                    # Record exception marking it as exception so we know to throw on playback
-                    self._record_data(interception_key, {'exception': ex})
+                self._record_interception_exception(interception_key, ex)
                 raise
 
-        if interception_key is not None:
-            try:
-                recorded_result = data_handler.prepare_input_for_recording(interception_key, result, args, kwargs) \
-                    if data_handler else result
-            except Exception:
-                error_message = u'Prepare input for recording error for interception key \'{}\''.format(
-                    interception_key)
+        if is_unresolved_async_result(result):
+            _logger.warning(
+                u"Interception of key '{}' returned {} which cannot be recorded, the intercepted function has to be "
+                u"declared with 'async def' for its awaited value to be recorded".format(
+                    interception_key, type(result).__name__))
 
-                _logger.exception(error_message)
+            self.discard_recording()
+            return result
 
-                self.discard_recording()
-                return result
-
-            if self._active_recording_parameters.copy_data_on_intercepion:
-                try:
-                    recorded_result = pickle_copy(recorded_result)
-                except Exception as ex:
-                    _logger.warning(u"recorded data couldn't be copied (type={} exception={})".format(
-                        type(recorded_result), repr(ex)))
-
-            # Record result
-            self._record_data(interception_key, {'value': recorded_result})
-
+        self._record_interception_result(interception_key, result, args, kwargs, data_handler)
         return result
+
+    def _record_interception_exception(self, interception_key, exception):
+        """
+        Records an exception raised by an intercepted invocation, marking it as an exception so it is thrown on playback
+        :param interception_key: Key to record the exception under, nothing is recorded when None
+        :type interception_key: Optional[str]
+        :param exception: Exception raised by the intercepted invocation
+        :type exception: Exception
+        """
+        if interception_key is None:
+            return
+
+        self._record_data(interception_key, {'exception': exception})
+
+    def _record_interception_result(self, interception_key, result, args, kwargs, data_handler=None):
+        """
+        Records the result of an intercepted invocation so it can be returned in playback mode. The current recording
+        is discarded when the data handler fails to prepare the result
+        :param interception_key: Key to record the result under, nothing is recorded when None
+        :type interception_key: Optional[str]
+        :param result: Result of the intercepted invocation
+        :type result: Any
+        :param args: invocation args
+        :type args: tuple
+        :param kwargs: invocation kwrags
+        :type kwargs: dict
+        :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
+        :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
+        """
+        if interception_key is None:
+            return
+
+        try:
+            recorded_result = data_handler.prepare_input_for_recording(interception_key, result, args, kwargs) \
+                if data_handler else result
+        except Exception:
+            error_message = u'Prepare input for recording error for interception key \'{}\''.format(
+                interception_key)
+
+            _logger.exception(error_message)
+
+            self.discard_recording()
+            return
+
+        if self._active_recording_parameters.copy_data_on_intercepion:
+            try:
+                recorded_result = pickle_copy(recorded_result)
+            except Exception as ex:
+                _logger.warning(u"recorded data couldn't be copied (type={} exception={})".format(
+                    type(recorded_result), repr(ex)))
+
+        self._record_data(interception_key, {'value': recorded_result})
 
     def play(self, recording_id, playback_function):
         # type: (str, Callable[[Recording], Any]) -> Playback
@@ -1046,6 +1170,17 @@ class TapeRecorder(object):
 
 
 CapturedArg = namedtuple('CapturedArg', 'position name')
+
+# The arguments an input interception was declared with, passed on when the interception flow is delegated
+InputInterceptionParams = namedtuple('InputInterceptionParams', [
+    'alias', 'alias_params_resolver', 'data_handler', 'capture_args', 'run_intercepted_when_missing',
+    'value_when_missing', 'fallback_aliases', 'static_function'
+])
+
+# The arguments an output interception was declared with, passed on when the interception flow is delegated
+OutputInterceptionParams = namedtuple('OutputInterceptionParams', [
+    'alias', 'data_handler', 'fail_on_no_recorded_result', 'default_result_when_not_recorded', 'static_function'
+])
 
 Output = namedtuple('Output', 'key value')
 
