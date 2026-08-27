@@ -189,13 +189,31 @@ class ServiceOperation(object):
 ```
 
 Coroutines that are intercepted concurrently, such as ones gathered by the same operation, each get their own
-interception, as the scope of an interception follows the running task. Since an output interception is keyed by its
-invocation number, concurrently intercepted outputs are played back correctly only when they are invoked in the order
-they were recorded in.
+interception, as the scope of an interception follows the running task.
 
-The decorator has to be applied directly to the coroutine function. A decorator that wraps a coroutine function
-without being declared with `async def` itself hides it, in which case the interception is left with a coroutine it
-cannot record:
+**Concurrently intercepted outputs are constrained by their invocation order.** An output interception is keyed by a
+per alias invocation number that is taken when the interception opens, not when the coroutine resolves, so concurrent
+outputs are numbered in the order they were started. A recording of them plays back correctly only when playback
+starts them in that same order. An operation whose scheduling order can differ between runs, such as one starting an
+output per item of a collection that is not deterministically ordered, is not safe to intercept concurrently. A
+playback that starts them in a different order pairs each output with another one's recorded result and raises
+nothing, so it surfaces as a difference between the recorded and the playback outputs rather than as a failure.
+
+Input interceptions carry no such constraint, as their key is built from the invocation arguments rather than from an
+invocation number, so concurrently intercepted inputs play back correctly in any order.
+
+The decorator has to be applied directly to the coroutine function, below any decorator that is not declared with
+`async def` itself:
+
+```python
+    @some_sync_decorator
+    @tape_recorder.intercept_input(alias='service_operation.fetch_request_data')
+    async def fetch_request_data(self):
+        ...
+```
+
+A decorator that sits between the interception and the coroutine function hides it, in which case the interception is
+left with a coroutine it cannot record:
 
 ```python
     @tape_recorder.intercept_input(alias='service_operation.fetch_request_data')

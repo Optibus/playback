@@ -2,7 +2,7 @@ import threading
 
 try:
     from contextvars import ContextVar
-except ImportError:
+except ImportError:  # pragma: no cover
     # Python 2 and Python 3.6 and below
     ContextVar = None
 
@@ -29,7 +29,7 @@ class InterceptionContext(object):
         if self._context_var is not None:
             return self._context_var.get()
 
-        return getattr(self._thread_locals, 'currently_in_interception', False)
+        return getattr(self._thread_locals, 'currently_in_interception', False)  # pragma: no cover
 
     @currently_in_interception.setter
     def currently_in_interception(self, value):
@@ -39,5 +39,5 @@ class InterceptionContext(object):
         """
         if self._context_var is not None:
             self._context_var.set(value)
-        else:
+        else:  # pragma: no cover
             self._thread_locals.currently_in_interception = value

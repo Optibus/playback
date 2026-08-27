@@ -1,6 +1,6 @@
 try:
     from inspect import isasyncgen, iscoroutine, iscoroutinefunction
-except ImportError:
+except ImportError:  # pragma: no cover
     # Python 2 has no coroutines
     isasyncgen = None
     iscoroutine = None
@@ -28,7 +28,7 @@ def is_unresolved_async_result(value):
     :return: Does the value still have to be driven by an event loop to produce a value
     :rtype: bool
     """
-    if iscoroutine is None:
+    if iscoroutine is None:  # pragma: no cover
         return False
 
     return iscoroutine(value) or isasyncgen(value)

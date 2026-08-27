@@ -2,6 +2,8 @@ import asyncio
 import functools
 import unittest
 
+from playback.exceptions import RecordingKeyError
+from playback.interception.output_interception import OutputInterceptionDataHandler
 from playback.tape_cassettes.in_memory.in_memory_tape_cassette import InMemoryTapeCassette
 from playback.tape_recorder import TapeRecorder
 
@@ -339,6 +341,29 @@ class TestTapeRecorderAsync(unittest.TestCase):
 
         self._assert_playback_vs_recording(playback_result, result)
 
+    def test_async_input_interception_key_missing_during_playback(self):
+        class Operation(object):
+
+            def __init__(self, input_key):
+                self.input_key = input_key
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return asyncio.run(self.get_value(self.input_key))
+
+            @self.tape_recorder.intercept_input('input')
+            async def get_value(self, param):
+                await asyncio.sleep(0)
+                return 5
+
+        result = Operation('key1').execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        with self.assertRaises(RecordingKeyError):
+            self.tape_recorder.play(recording_id,
+                                    playback_function=lambda recording: Operation('key2').execute())
+
     def test_recording_is_discarded_when_an_input_interception_returns_a_coroutine(self):
         class Operation(object):
 
@@ -367,6 +392,24 @@ class TestTapeRecorderAsync(unittest.TestCase):
 
             @self.tape_recorder.intercept_input('input')
             async def get_value(self):
+                await asyncio.sleep(0)
+                return 5
+
+        result = Operation().execute()
+        self.assertEqual(5, result)
+        self.assertIsNone(self.tape_cassette.get_last_recording_id())
+
+    def test_async_output_interception_is_not_recorded_when_recording_is_disabled(self):
+        self.tape_recorder.disable_recording()
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return asyncio.run(self.send_value())
+
+            @self.tape_recorder.intercept_output('output')
+            async def send_value(self):
                 await asyncio.sleep(0)
                 return 5
 
@@ -477,6 +520,70 @@ class TestTapeRecorderAsync(unittest.TestCase):
                                 if TapeRecorder.OPERATION_OUTPUT_ALIAS in po.key)
         self.assertEqual(6, operation_output.value['args'][0])
 
+    def test_async_output_interception_fails_when_result_is_not_recorded(self):
+        class OperationOld(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return asyncio.run(self.send_value())
+
+            @self.tape_recorder.intercept_output('output')
+            async def send_value(self):
+                await asyncio.sleep(0)
+                return 5
+
+        class OperationNew(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return asyncio.run(self.send_missing_value())
+
+            @self.tape_recorder.intercept_output('output_missing')
+            async def send_missing_value(self):
+                await asyncio.sleep(0)
+                return 5
+
+        result = OperationOld().execute()
+        self.assertEqual(5, result)
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        with self.assertRaises(RecordingKeyError):
+            self.tape_recorder.play(recording_id,
+                                    playback_function=lambda recording: OperationNew().execute())
+
+    def test_async_output_interception_data_handler_failure(self):
+        class ErrorDataHandler(OutputInterceptionDataHandler):
+
+            def prepare_output_for_recording(self, interception_key, args, kwargs):
+                raise Exception('error')
+
+            def restore_output_from_recording(self, recorded_data):
+                pass
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return asyncio.run(self.send_values())
+
+            async def send_values(self):
+                first = await self.send_value(5)
+                return first + await self.send_other_value(5)
+
+            @self.tape_recorder.intercept_output('output_function', data_handler=ErrorDataHandler())
+            async def send_value(self, value):
+                await asyncio.sleep(0)
+                return value
+
+            @self.tape_recorder.intercept_output('output_function2')
+            async def send_other_value(self, value):
+                await asyncio.sleep(0)
+                return value
+
+        result = Operation().execute()
+        self.assertEqual(10, result)
+        self.assertIsNone(self.tape_cassette.get_last_recording_id())
+
     def test_recording_is_discarded_when_an_output_interception_returns_a_coroutine(self):
         class Operation(object):
 
@@ -527,4 +634,27 @@ class TestTapeRecorderAsync(unittest.TestCase):
 
         result = asyncio.run(Operation().execute())
         self.assertEqual(5, result)
+        self.assertIsNone(self.tape_cassette.get_last_recording_id())
+
+    def test_interception_exception_is_not_recorded_when_the_key_creation_failed(self):
+        class UnencodeableObject(object):
+            def __getstate__(self):
+                raise Exception()
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                try:
+                    return asyncio.run(self.get_value(UnencodeableObject()))
+                except ValueError as ex:
+                    return 'caught {}'.format(ex)
+
+            @self.tape_recorder.intercept_input('input')
+            async def get_value(self, param):
+                await asyncio.sleep(0)
+                raise ValueError('input failed')
+
+        result = Operation().execute()
+        self.assertEqual('caught input failed', result)
         self.assertIsNone(self.tape_cassette.get_last_recording_id())
