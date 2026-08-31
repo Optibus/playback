@@ -171,6 +171,63 @@ The return value of the operation is always intercepted as an output implicitly 
 
 When intercepting a static method, `static_intercept_output` should be used.
 
+### Intercepting coroutine functions
+All of the interception decorators accept a function declared with `async def`. The awaited value is the recorded
+input/output, and upon playback awaiting the intercepted method resolves to the recorded value without running the
+coroutine:
+
+```python
+class ServiceOperation(object):
+
+    @tape_recorder.operation()
+    def execute(self):
+        return asyncio.run(self.fetch_request_data())
+
+    @tape_recorder.intercept_input(alias='service_operation.fetch_request_data')
+    async def fetch_request_data(self):
+        return await self._api_client.get_request_data()
+```
+
+Coroutines that are intercepted concurrently, such as ones gathered by the same operation, each get their own
+interception, as the scope of an interception follows the running task.
+
+**Concurrently intercepted outputs are constrained by their invocation order.** An output interception is keyed by a
+per alias invocation number that is taken when the interception opens, not when the coroutine resolves, so concurrent
+outputs are numbered in the order they were started. A recording of them plays back correctly only when playback
+starts them in that same order. An operation whose scheduling order can differ between runs, such as one starting an
+output per item of a collection that is not deterministically ordered, is not safe to intercept concurrently. A
+playback that starts them in a different order pairs each output with another one's recorded result and raises
+nothing, so it surfaces as a difference between the recorded and the playback outputs rather than as a failure.
+
+Input interceptions carry no such constraint, as their key is built from the invocation arguments rather than from an
+invocation number, so concurrently intercepted inputs play back correctly in any order.
+
+The decorator has to be applied directly to the coroutine function, below any decorator that is not declared with
+`async def` itself:
+
+```python
+    @some_sync_decorator
+    @tape_recorder.intercept_input(alias='service_operation.fetch_request_data')
+    async def fetch_request_data(self):
+        ...
+```
+
+A decorator that sits between the interception and the coroutine function hides it, in which case the interception is
+left with a coroutine it cannot record:
+
+```python
+    @tape_recorder.intercept_input(alias='service_operation.fetch_request_data')
+    @some_sync_decorator  # hides the coroutine function from the interception above it
+    async def fetch_request_data(self):
+        ...
+```
+
+An operation has to resolve its coroutines before it returns, so `operation` and `class_operation` cannot be applied
+to a coroutine function. Async generators are not intercepted either, as an interception records a single value and
+not a stream of them. Whenever an interception or an operation is left holding a coroutine or an async generator it
+cannot record, the recording is discarded and a warning is logged, so a misplaced decorator never produces a
+recording that fails on playback.
+
 ## `TapeCassette` class
 An abstract class that acts as a storage driver for TapeRecorder to store and fetch recordings, the class has three main
 methods that need to be implemented.
