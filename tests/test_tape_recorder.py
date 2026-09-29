@@ -320,6 +320,71 @@ class TestTapeRecorder(unittest.TestCase):
 
         self.assertEqual(5, result)
 
+    def test_drop_recording_inside_input_interception(self):
+        local_tape_recorder = self.tape_recorder
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_input()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_input(self):
+                local_tape_recorder.discard_recording()
+                return 5
+
+        instance = Operation()
+        with patch.object(InMemoryTapeCassette, '_save_recording', wraps=self.tape_cassette._save_recording) \
+                as intercepted_save, \
+                patch.object(InMemoryTapeCassette, 'abort_recording', wraps=self.tape_cassette.abort_recording) \
+                as intercepted_abort:
+            result = instance.execute()
+            intercepted_save.assert_not_called()
+            intercepted_abort.assert_called_once()
+
+        self.assertEqual(5, result)
+
+    def test_drop_recording_inside_input_interception_that_raises(self):
+        local_tape_recorder = self.tape_recorder
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return self.get_input()
+
+            @self.tape_recorder.intercept_input('input')
+            def get_input(self):
+                local_tape_recorder.discard_recording()
+                raise ValueError('input failed')
+
+        instance = Operation()
+        with patch.object(InMemoryTapeCassette, '_save_recording', wraps=self.tape_cassette._save_recording) \
+                as intercepted_save:
+            with self.assertRaises(ValueError):
+                instance.execute()
+            intercepted_save.assert_not_called()
+
+    def test_drop_recording_inside_static_input_interception(self):
+        local_tape_recorder = self.tape_recorder
+
+        @self.tape_recorder.static_intercept_input('input')
+        def get_input():
+            local_tape_recorder.discard_recording()
+            return 5
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return get_input()
+
+        with patch.object(InMemoryTapeCassette, '_save_recording', wraps=self.tape_cassette._save_recording) \
+                as intercepted_save:
+            self.assertEqual(5, Operation().execute())
+            intercepted_save.assert_not_called()
+
     def test_skip_recording_decorator(self):
 
         @self.tape_recorder.recording_params(RecordingParameters(skipped=True))
