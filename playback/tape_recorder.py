@@ -1007,7 +1007,8 @@ class TapeRecorder(object):
         :param exception: Exception raised by the intercepted invocation
         :type exception: Exception
         """
-        if interception_key is None:
+        # Recording was discarded while the intercepted function ran
+        if interception_key is None or self._active_recording is None:
             return
 
         self._record_data(interception_key, {'exception': exception})
@@ -1027,7 +1028,8 @@ class TapeRecorder(object):
         :param data_handler: Optional data handler that prepare and restore the input data for and from the recording
         :type data_handler: playback.interception.input_interception.InputInterceptionDataHandler
         """
-        if interception_key is None:
+        # Recording was discarded while the intercepted function ran
+        if interception_key is None or self._active_recording is None:
             return
 
         try:
