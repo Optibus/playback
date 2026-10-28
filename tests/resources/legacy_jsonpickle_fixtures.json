@@ -1,0 +1,142 @@
+[
+ {
+  "name": "enum",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [1]}, null, null, null]}",
+  "expected": "Color(<Color.RED: 1>)"
+ },
+ {
+  "name": "frozenset",
+  "encoded": "{\"py/object\": \"__builtin__.frozenset\", \"py/reduce\": [{\"py/type\": \"__builtin__.frozenset\"}, {\"py/tuple\": [[3]]}, null, null, null]}",
+  "expected": "frozenset(frozenset({3}))"
+ },
+ {
+  "name": "timedelta",
+  "encoded": "{\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [1, 2, 0]}]}",
+  "expected": "timedelta(datetime.timedelta(days=1, seconds=2))"
+ },
+ {
+  "name": "decimal",
+  "encoded": "{\"py/object\": \"decimal.Decimal\", \"__reduce__\": [{\"py/type\": \"decimal.Decimal\"}, {\"py/tuple\": [\"1.10\"]}]}",
+  "expected": "Decimal(Decimal('1.10'))"
+ },
+ {
+  "name": "ordered dict",
+  "encoded": "{\"py/object\": \"collections.OrderedDict\", \"__reduce__\": [{\"py/type\": \"collections.OrderedDict\"}, {\"py/tuple\": [[[\"z\", 1], [\"y\", 2]]]}]}",
+  "expected": "OrderedDict{'z': int(1), 'y': int(2)}"
+ },
+ {
+  "name": "counter",
+  "encoded": "{\"py/object\": \"collections.Counter\", \"__reduce__\": [{\"py/type\": \"collections.Counter\"}, {\"py/tuple\": [{\"a\": 2, \"b\": 1}]}]}",
+  "expected": "Counter{'a': int(2), 'b': int(1)}"
+ },
+ {
+  "name": "struct time",
+  "encoded": "{\"py/object\": \"time.struct_time\", \"__reduce__\": [{\"py/type\": \"time.struct_time\"}, {\"py/tuple\": [{\"py/tuple\": [1970, 1, 1, 0, 0, 0, 3, 1, 0]}, {\"tm_gmtoff\": 0, \"tm_zone\": \"GMT\"}]}]}",
+  "expected": "struct_time((1970, 1, 1, 0, 0, 0, 3, 1, 0))"
+ },
+ {
+  "name": "stat result",
+  "encoded": "{\"py/object\": \"os.stat_result\", \"__reduce__\": [{\"py/type\": \"os.stat_result\"}, {\"py/tuple\": [{\"py/tuple\": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}, {\"st_atime\": 7, \"st_atime_ns\": null, \"st_blksize\": null, \"st_blocks\": null, \"st_ctime\": 9, \"st_ctime_ns\": null, \"st_mtime\": 8, \"st_mtime_ns\": null, \"st_rdev\": null}]}]}",
+  "expected": "stat_result((0, 1, 2, 3, 4, 5, 6, 7, 8, 9))"
+ },
+ {
+  "name": "datetime",
+  "encoded": "{\"py/object\": \"datetime.datetime\", \"__reduce__\": [{\"py/type\": \"datetime.datetime\"}, [\"B+oBAgMEBQAABg==\"]]}",
+  "expected": "datetime(datetime.datetime(2026, 1, 2, 3, 4, 5, 6))"
+ },
+ {
+  "name": "aware datetime",
+  "encoded": "{\"py/object\": \"datetime.datetime\", \"__reduce__\": [{\"py/type\": \"datetime.datetime\"}, [\"B+oBAgAAAAAAAA==\", {\"py/object\": \"datetime.timezone\", \"py/initargs\": {\"py/tuple\": [{\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [0, 7200, 0]}]}]}}]]}",
+  "expected": "datetime(datetime.datetime(2026, 1, 2, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200))))"
+ },
+ {
+  "name": "date",
+  "encoded": "{\"py/object\": \"datetime.date\", \"__reduce__\": [{\"py/type\": \"datetime.date\"}, [\"B+oBAg==\"]]}",
+  "expected": "date(datetime.date(2026, 1, 2))"
+ },
+ {
+  "name": "bytes",
+  "encoded": "{\"py/b64\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4\\nOTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiYw==\\n\"}",
+  "expected": "bytes(b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abc')"
+ },
+ {
+  "name": "bytes of jsonpickle 0.9.3",
+  "encoded": "{\"py/bytes\": \"=00=01=02=03=04=05=06=07=08=09\\n=0B=0C\\r=0E=0F=10=11=12=13=14=15=16=17=18=19=1A=1B=1C=1D=1E=1F !\\\"#$%&'()*+,-=\\n./0123456789:;<=3D>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abc\"}",
+  "expected": "bytes(b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abc')"
+ },
+ {
+  "name": "bytes state of jsonpickle 0.9.3",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.BytesState\", \"py/state\": {\"py/bytes\": \"=00=01 abc=3D=FF\"}}",
+  "expected": "BytesState(bytes(b'\\x00\\x01 abc=\\xff'))"
+ },
+ {
+  "name": "namedtuple",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Fingerprint\", \"py/newargs\": {\"py/tuple\": [\"data\", 3]}, \"py/seq\": [\"data\", 3]}",
+  "expected": "Fingerprint(Fingerprint(name='data', version=3))"
+ },
+ {
+  "name": "state object",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.WithState\", \"py/state\": {\"stored\": [[1, 2], {\"py/id\": 2}]}}",
+  "expected": "WithState(list[list[int(1), int(2)], <ref 3>])"
+ },
+ {
+  "name": "slots object",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.WithSlots\", \"first\": [1, 2], \"second\": {\"py/id\": 1}}",
+  "expected": "WithSlots(list[int(1), int(2)], <ref 2>)"
+ },
+ {
+  "name": "list subclass",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.TaggedList\", \"tag\": \"tagged\", \"py/seq\": [[1, 2], 3]}",
+  "expected": "TaggedList(list[list[int(1), int(2)], int(3)], dict{'tag': str('tagged')})"
+ },
+ {
+  "name": "dict subclass",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.TaggedDict\", \"a\": [1, 2], \"b\": {\"py/id\": 1}}",
+  "expected": "TaggedDict(dict{'a': list[int(1), int(2)], 'b': <ref 3>}, dict{})"
+ },
+ {
+  "name": "default dict",
+  "encoded": "{\"py/object\": \"collections.defaultdict\", \"k\": [1, 2], \"default_factory\": {\"py/type\": \"__builtin__.list\"}}",
+  "expected": "defaultdict{'k': list[int(1), int(2)]}"
+ },
+ {
+  "name": "set and tuple",
+  "encoded": "[{\"py/set\": [{\"py/tuple\": [1, 2]}]}, {\"py/tuple\": [[1, 2], {\"py/id\": 1}]}]",
+  "expected": "list[set({(1, 2)}), tuple(list[int(1), int(2)], <ref 2>)]"
+ },
+ {
+  "name": "shared list in dict",
+  "encoded": "{\"a\": [1, 2], \"b\": {\"py/id\": 0}}",
+  "expected": "dict{'a': list[int(1), int(2)], 'b': <ref 2>}"
+ },
+ {
+  "name": "shared list in two dicts",
+  "encoded": "[{\"k\": [1, 2]}, {\"k\": {\"py/id\": 1}}]",
+  "expected": "list[dict{'k': list[int(1), int(2)]}, dict{'k': <ref 3>}]"
+ },
+ {
+  "name": "shared object",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"shared\", \"parent\": null}, {\"py/id\": 1}]",
+  "expected": "list[Node(shared, children=list[], parent=NoneType(None)), <ref 2>]"
+ },
+ {
+  "name": "cycle",
+  "encoded": "{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"child\", \"parent\": {\"py/id\": 0}}], \"name\": \"root\", \"parent\": null}",
+  "expected": "Node(root, children=list[Node(child, children=list[], parent=<ref 1>)], parent=NoneType(None))"
+ },
+ {
+  "name": "shared legacy types",
+  "encoded": "[{\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [0, 7, 0]}]}, {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [2]}, null, null, null]}, {\"py/object\": \"__builtin__.frozenset\", \"py/reduce\": [{\"py/type\": \"__builtin__.frozenset\"}, {\"py/tuple\": [[4]]}, null, null, null]}, [1, 2], {\"py/id\": 5}]",
+  "expected": "list[timedelta(datetime.timedelta(seconds=7)), Color(<Color.BLUE: 2>), frozenset(frozenset({4})), list[int(1), int(2)], <ref 2>]"
+ },
+ {
+  "name": "ordered dict then list",
+  "encoded": "[{\"py/object\": \"collections.OrderedDict\", \"__reduce__\": [{\"py/type\": \"collections.OrderedDict\"}, {\"py/tuple\": [[[\"z\", [1, 2]]]]}]}, {\"py/id\": 4}]",
+  "expected": "list[OrderedDict{'z': list[int(1), int(2)]}, <ref 3>]"
+ },
+ {
+  "name": "recording like",
+  "encoded": "{\"_metadata\": {\"_tape_recorder_operation_class\": {\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Node\"}, \"duration\": 1.5}, \"input: get args={\\\"py/tuple\\\": []}, kwargs=[]\": {\"value\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [1]}, null, null, null]}, [1, 2], {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"shared\", \"parent\": null}]}, \"output: _tape_recorder_operation #1\": {\"args\": [{\"py/id\": 3}, {\"py/object\": \"decimal.Decimal\", \"__reduce__\": [{\"py/type\": \"decimal.Decimal\"}, {\"py/tuple\": [\"2.5\"]}]}], \"kwargs\": {}}, \"output: store #1\": {\"args\": {\"py/tuple\": [{\"py/id\": 2}, {\"when\": {\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [0, 3600, 0]}]}}]}, \"kwargs\": {}}}",
+  "expected": "dict{'_metadata': dict{'_tape_recorder_operation_class': type(<class 'tests.utils.legacy_jsonpickle_cases.Node'>), 'duration': float(1.5)}, 'input: get args={\"py/tuple\": []}, kwargs=[]': dict{'value': list[Color(<Color.RED: 1>), list[int(1), int(2)], Node(shared, children=list[], parent=NoneType(None))]}, 'output: _tape_recorder_operation #1': dict{'args': list[<ref 6>, Decimal(Decimal('2.5'))], 'kwargs': dict{}}, 'output: store #1': dict{'args': tuple(<ref 5>, dict{'when': timedelta(datetime.timedelta(seconds=3600))}), 'kwargs': dict{}}}"
+ }
+]
