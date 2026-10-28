@@ -655,6 +655,9 @@ class TestTapeRecorder(unittest.TestCase):
             def __getstate__(self):
                 raise Exception("Unserializable")
 
+            def __reduce__(self):
+                raise Exception("Unserializable")
+
         class Operation(object):
 
             @self.tape_recorder.operation()
