@@ -10,6 +10,7 @@ from jsonpickle import decode, encode
 
 from playback.exceptions import RecordingKeyError
 from playback.recording import Recording
+from playback.utils.legacy_jsonpickle import decode_legacy
 from playback.utils.pickle_copy import pickle_copy
 
 from playback.utils.timing_utils import Timed
@@ -23,7 +24,7 @@ class MemoryRecording(Recording):
         return MemoryRecording(_id=_id)
 
     @staticmethod
-    def from_buffered_reader(recording_id, buffered_reader, recording_metadata):
+    def from_buffered_reader(recording_id, buffered_reader, recording_metadata, legacy_jsonpickle=False):
         _logger.info(u'Fetching compressed recording using key {}'.format(recording_id))
         compressed_recording = buffered_reader.read()
 
@@ -31,13 +32,18 @@ class MemoryRecording(Recording):
         serialized_data = decompress(compressed_recording)
 
         _logger.info(u'Decoding recording of key {}'.format(recording_id))
-        full_data = decode(serialized_data)
+        full_data = decode_legacy(serialized_data) if legacy_jsonpickle else decode(serialized_data)
 
         # remove metadata from the main recording
         full_data.pop('_metadata', {})
 
         _logger.info(u'Returning recording of key {}'.format(recording_id))
-        return MemoryRecording(recording_id, recording_data=full_data, recording_metadata=recording_metadata)
+        return MemoryRecording(
+            recording_id,
+            recording_data=full_data,
+            recording_metadata=recording_metadata,
+            legacy_jsonpickle=legacy_jsonpickle,
+        )
 
     @contextmanager
     def as_buffered_reader(self):
@@ -64,7 +70,7 @@ class MemoryRecording(Recording):
 
         yield BufferedReader(io.BytesIO(compressed_full)), recording_size
 
-    def __init__(self, _id=None, recording_data=None, recording_metadata=None):
+    def __init__(self, _id=None, recording_data=None, recording_metadata=None, legacy_jsonpickle=False):
         """
         :param _id: Id of the recording
         :type _id: str
@@ -72,8 +78,10 @@ class MemoryRecording(Recording):
         :type recording_data: dict
         :param recording_metadata: On fetched recording this should contain the recorded metadata
         :type recording_metadata: dict
+        :param legacy_jsonpickle: Was the fetched recording encoded by jsonpickle 0.9.x
+        :type legacy_jsonpickle: bool
         """
-        super(MemoryRecording, self).__init__(_id=_id)
+        super(MemoryRecording, self).__init__(_id=_id, legacy_jsonpickle=legacy_jsonpickle)
         self.recording_data = recording_data or {}
         self.recording_metadata = recording_metadata or {}
         self.recording_metadata['_recording_type'] = 'memory'

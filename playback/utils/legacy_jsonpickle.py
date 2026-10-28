@@ -326,4 +326,14 @@ def _is_legacy_jsonpickle_installed():
     :return: Is the installed jsonpickle a 0.9.x version
     :rtype: bool
     """
-    return int(jsonpickle.__version__.split('.')[0]) < 1
+    return is_legacy_jsonpickle_version(jsonpickle.__version__)
+
+
+def is_legacy_jsonpickle_version(version):
+    """
+    :param version: A jsonpickle version, None when it is not known
+    :type version: str
+    :return: Is the version a 0.9.x version, an unknown version is taken as 0.9.x
+    :rtype: bool
+    """
+    return version is None or int(str(version).split('.')[0]) < 1

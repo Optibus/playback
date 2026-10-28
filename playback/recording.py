@@ -9,8 +9,9 @@ class Recording(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, _id=None):
+    def __init__(self, _id=None, legacy_jsonpickle=False):
         self.id = _id or uuid.uuid1().hex
+        self.legacy_jsonpickle = legacy_jsonpickle
         self._closed = False
 
     @staticmethod
@@ -27,7 +28,7 @@ class Recording(object):
 
     @staticmethod
     @abstractmethod
-    def from_buffered_reader(recording_id, buffered_reader, recording_metadata):
+    def from_buffered_reader(recording_id, buffered_reader, recording_metadata, legacy_jsonpickle=False):
         """
         Fetches, decompresses, decodes, and prepares a recording from a buffered reader.
 
@@ -38,6 +39,8 @@ class Recording(object):
         :param recording_metadata: Metadata that could optionally override or append to the extracted
             metadata from the recording.
         :type recording_metadata: dict
+        :param legacy_jsonpickle: Was the recording data encoded by jsonpickle 0.9.x
+        :type legacy_jsonpickle: bool
         :return: A new MemoryRecording instance containing the fetched recording and its metadata.
         :rtype: MemoryRecording
         """

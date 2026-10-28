@@ -8,6 +8,7 @@ from jsonpickle import encode, decode
 
 from playback.exceptions import RecordingKeyError
 from playback.recording import Recording
+from playback.utils.legacy_jsonpickle import decode_legacy
 
 
 class SqliteRecording(Recording):
@@ -21,19 +22,24 @@ class SqliteRecording(Recording):
             return SqliteRecording(_id=_id, db_file_name=db_file.name)
 
     @staticmethod
-    def from_buffered_reader(recording_id, buffered_reader, recording_metadata=None):
+    def from_buffered_reader(recording_id, buffered_reader, recording_metadata=None, legacy_jsonpickle=False):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as db_file:
             shutil.copyfileobj(buffered_reader, db_file)
 
-            return SqliteRecording(_id=recording_id, db_file_name=db_file.name, recording_metadata=recording_metadata)
+            return SqliteRecording(
+                _id=recording_id,
+                db_file_name=db_file.name,
+                recording_metadata=recording_metadata,
+                legacy_jsonpickle=legacy_jsonpickle,
+            )
 
     @contextmanager
     def as_buffered_reader(self):
         with io.open(self._db_file_name, "rb") as f:
             yield f, os.path.getsize(self._db_file_name)
 
-    def __init__(self, db_file_name, _id=None, recording_metadata=None):
-        super(SqliteRecording, self).__init__(_id=_id)
+    def __init__(self, db_file_name, _id=None, recording_metadata=None, legacy_jsonpickle=False):
+        super(SqliteRecording, self).__init__(_id=_id, legacy_jsonpickle=legacy_jsonpickle)
 
         self._db_file_name = db_file_name
         self.recording_metadata = recording_metadata or {}
@@ -67,7 +73,7 @@ class SqliteRecording(Recording):
             if data is None:
                 raise RecordingKeyError(u'Key \'{}\' not found in recording'.format(key).encode("utf-8"))
 
-        return decode(data["value"])
+        return decode_legacy(data["value"]) if self.legacy_jsonpickle else decode(data["value"])
 
     def get_all_keys(self):
         with self._connection() as connection:
