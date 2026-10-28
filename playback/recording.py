@@ -1,6 +1,8 @@
 import uuid
 from abc import ABCMeta, abstractmethod
 
+from playback.utils.legacy_jsonpickle import normalize_interception_key, upgrade_legacy_interception_key
+
 
 class Recording(object):
     """
@@ -12,6 +14,7 @@ class Recording(object):
     def __init__(self, _id=None, legacy_jsonpickle=False):
         self.id = _id or uuid.uuid1().hex
         self.legacy_jsonpickle = legacy_jsonpickle
+        self._legacy_interception_keys = None
         self._closed = False
 
     @staticmethod
@@ -105,6 +108,28 @@ class Recording(object):
         :raise: playback.exceptions.RecordingKeyError
         """
         pass
+
+    def find_legacy_interception_key(self, possible_keys):
+        """
+        Finds the recorded input interception key of a recording that jsonpickle 0.9.x encoded, which can differ in
+        text from the key that the installed jsonpickle makes for the same input
+        :param possible_keys: Possible interception keys of a recorded data
+        :type possible_keys: list of basestring
+        :return: The recorded key, None when it is not found
+        :rtype: basestring
+        """
+        if self._legacy_interception_keys is None:
+            self._legacy_interception_keys = {}
+            for key in self.get_all_keys():
+                if key.startswith(u'input: '):
+                    normalized_key = normalize_interception_key(upgrade_legacy_interception_key(key))
+                    self._legacy_interception_keys.setdefault(normalized_key, key)
+
+        normalized_keys = (normalize_interception_key(key) for key in possible_keys)
+        return next(
+            (self._legacy_interception_keys[key] for key in normalized_keys if key in self._legacy_interception_keys),
+            None,
+        )
 
     @abstractmethod
     def get_all_keys(self):

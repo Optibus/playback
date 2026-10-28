@@ -940,6 +940,8 @@ class TapeRecorder(object):
         recording_keys = self._playback_recording.get_all_keys()
 
         interception_key = next((x for x in possible_keys if x in recording_keys), None)
+        if not interception_key and getattr(self._playback_recording, 'legacy_jsonpickle', False):
+            interception_key = self._playback_recording.find_legacy_interception_key(possible_keys)
 
         if not interception_key:
             raise RecordingKeyError(

@@ -9,3 +9,4 @@ if sys.version_info[0] < 3:
     collect_ignore.append('utils/test_legacy_jsonpickle.py')
     collect_ignore.append('recordings/test_sqlite_recording_legacy_jsonpickle.py')
     collect_ignore.append('test_cassettes/s3/test_s3_tape_cassette_legacy_jsonpickle.py')
+    collect_ignore.append('test_tape_recorder_legacy_jsonpickle.py')
