@@ -281,6 +281,26 @@ def __init__(self, bucket, key_prefix='', region=None, transient=False, read_onl
 * `sampling_calculator` - Optional sampling ratio calculator function. Before saving the recording, this
   function will be triggered with (category, recording_size, recording)
   and the function should return a number between 0 and 1 which specifies its sampling rate
+* `recording_type` - Recording class of new recordings, `MemoryRecording` (default) or `SqliteRecording`
+* `legacy_recordings_compatibility` - If True, recordings encoded by jsonpickle 0.9.x can be replayed with a later
+  jsonpickle version. See below
+
+#### Replaying recordings made with jsonpickle 0.9.x
+Python 3.10 and earlier install jsonpickle 0.9.4, and Python 3.11 and later install a later version. The later
+versions cannot decode all the values that 0.9.4 encoded, and they make different interception keys for some inputs,
+for example a dict whose keys were not inserted in sorted order, an enum or a `timedelta`. Thus a recording made with
+jsonpickle 0.9.4 can fail to replay with a later version.
+
+`TapeRecorder` writes the jsonpickle version into the metadata of each recording. When
+`legacy_recordings_compatibility` is True and the metadata of a recording has no jsonpickle version, or a 0.9.x
+version, the cassette decodes the recording in the 0.9.x format and playback also compares the input keys in a form
+that does not depend on the jsonpickle version. A key that contains a `py/id` reference must still match exactly.
+```python
+tape_cassette = S3TapeCassette('production-recordings', region='us-east-1', legacy_recordings_compatibility=True)
+```
+Turn it on only when the recordings without a jsonpickle version in their metadata were encoded by jsonpickle 0.9.x,
+and turn it off when those recordings are not replayed any more. A recording that a later jsonpickle version encoded
+without the version in its metadata can decode incorrectly with this option when it contains `py/id` references.
 
 # Usage and examples - comparing replayed vs recorded operations
 ## Using the Equalizer
