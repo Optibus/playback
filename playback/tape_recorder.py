@@ -10,6 +10,7 @@ from random import Random
 from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING
+import jsonpickle
 from jsonpickle import encode
 from decorator import contextmanager
 
@@ -54,6 +55,7 @@ class TapeRecorder(object):
     OPERATION_CLASS = '_tape_recorder_operation_class'
     EXCEPTION_IN_OPERATION = '_tape_recorder_exception_in_operation'
     INCOMPLETE_RECORDING = '_tape_recorder_incomplete_recording'
+    JSONPICKLE_VERSION = '_tape_recorder_jsonpickle_version'
 
     def __init__(self, tape_cassette, random_seed=None):
         # type: (TapeCassette, Optional[int]) -> None
@@ -175,6 +177,7 @@ class TapeRecorder(object):
         """
         metadata[TapeRecorder.DURATION] = duration
         metadata[TapeRecorder.RECORDED_AT] = str(datetime.utcnow())
+        metadata[TapeRecorder.JSONPICKLE_VERSION] = jsonpickle.__version__
         # In this method we only need to examine the recording keys, so we are not fetching the full recorded output
         # which can potentially require thread synchronization if the `AsyncTapeCasset` is being used.
         output_keys = TapeRecorder._extract_recorded_output_keys(recording)
