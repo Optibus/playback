@@ -1,10 +1,11 @@
 """
-Decodes data that jsonpickle 0.9.x encoded when a later jsonpickle version is installed
+Reads the data and the interception keys that jsonpickle 0.9.x encoded, when a later jsonpickle version is installed
 """
 
 import base64
 import json
 import quopri
+import re
 
 import jsonpickle
 from jsonpickle import tags
@@ -44,6 +45,59 @@ _LEGACY_RESTORE_TAGS = (
 
 # The tags of the dicts that the 0.9.x pickler and unpickler number, lists are numbered too
 _LEGACY_NUMBERED_TAGS = frozenset([tags.REPR, tags.OBJECT])
+
+# Must agree with TapeRecorder._input_interception_key
+_INPUT_INTERCEPTION_KEY_FORMAT = u'{} args={}, kwargs={}'
+_INPUT_INTERCEPTION_KEY_PATTERN = re.compile(r'^(input: .*?) args=(.*), kwargs=(.*)$', re.DOTALL)
+
+
+def upgrade_legacy_interception_key(key):
+    """
+    :param key: Input interception key that was made with jsonpickle 0.9.x
+    :type key: str
+    :return: The key that the installed jsonpickle makes for the same input. The given key when it is not an input
+    interception key, or when its arguments cannot be decoded.
+    :rtype: str
+    """
+    match = _INPUT_INTERCEPTION_KEY_PATTERN.match(key)
+    if not match:
+        return key
+
+    alias_part, args, kwargs = match.groups()
+    try:
+        args = jsonpickle.encode(decode_legacy(args), unpicklable=True)
+        kwargs = jsonpickle.encode(decode_legacy(kwargs), unpicklable=True)
+    except Exception:  # pylint: disable=broad-except
+        return key
+
+    return _INPUT_INTERCEPTION_KEY_FORMAT.format(alias_part, args, kwargs)
+
+
+def normalize_interception_key(key):
+    """
+    Sorts the keys of the dicts in the arguments of an input interception key, so that equal dicts give equal keys
+    whatever their insertion order. Keys with a reference id are not changed, because the ids follow the order in
+    which jsonpickle encoded the dicts.
+    :param key: Input interception key
+    :type key: str
+    :return: Normalized key
+    :rtype: str
+    """
+    match = _INPUT_INTERCEPTION_KEY_PATTERN.match(key)
+    if not match:
+        return key
+
+    alias_part, args, kwargs = match.groups()
+    if '"{}"'.format(tags.ID) in args or '"{}"'.format(tags.ID) in kwargs:
+        return key
+
+    try:
+        args = json.dumps(json.loads(args), sort_keys=True)
+        kwargs = json.dumps(json.loads(kwargs), sort_keys=True)
+    except ValueError:
+        return key
+
+    return _INPUT_INTERCEPTION_KEY_FORMAT.format(alias_part, args, kwargs)
 
 
 def decode_legacy(encoded):

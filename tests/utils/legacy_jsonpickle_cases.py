@@ -8,14 +8,18 @@ from decimal import Decimal
 from enum import Enum
 
 FIXTURES_PATH = os.path.join(os.path.dirname(__file__), '..', 'resources', 'legacy_jsonpickle_fixtures.json')
+KEY_FIXTURES_PATH = os.path.join(os.path.dirname(__file__), '..', 'resources', 'legacy_jsonpickle_key_fixtures.json')
+KEY_ALIAS = 'get'
 
 
-def load_fixtures():
+def load_fixtures(path=FIXTURES_PATH):
     """
-    :return: The values of build_cases() as encoded by jsonpickle 0.9.4, by case name
+    :param path: Fixtures file, FIXTURES_PATH or KEY_FIXTURES_PATH
+    :type path: str
+    :return: The cases as encoded by jsonpickle 0.9.4, by case name
     :rtype: OrderedDict
     """
-    with open(FIXTURES_PATH) as fixtures_file:
+    with open(path) as fixtures_file:
         return OrderedDict((fixture['name'], fixture) for fixture in json.load(fixtures_file))
 
 
@@ -216,6 +220,39 @@ def build_cases():
                     'output: _tape_recorder_operation #1': {'args': [shared_node, Decimal('2.5')], 'kwargs': {}},
                 },
             ),
+        ]
+    )
+
+
+def build_key_cases():
+    """
+    Arguments of intercepted inputs, as (args, kwargs). The keys of each dict are inserted in an order that is not
+    sorted, as jsonpickle 0.9.x writes them.
+    """
+
+    def make_dict(*pairs):
+        assert list(pairs) != sorted(pairs, key=lambda pair: pair[0])
+        return dict(pairs)
+
+    shared_list = [1, 2]
+    node = Node('node')
+    node.children.append(Node('child'))
+
+    return OrderedDict(
+        [
+            ('dict', ((make_dict(('plan_id', 1), ('_id', make_dict(('$in', [3, 1, 2]), ('$exists', True)))),), {})),
+            ('enum', ((Color.RED, 'x'), {})),
+            ('enum in dict', ((make_dict(('module', Color.BLUE), ('enabled', True)),), {})),
+            ('timedelta and decimal', ((timedelta(days=1), Decimal('1.5')), {})),
+            ('bytes', ((bytes(range(100)),), {})),
+            ('ordered dict', ((OrderedDict([('z', 1), ('y', 2)]),), {})),
+            ('namedtuple', ((Fingerprint('data', 3),), {})),
+            ('object', ((node,), {})),
+            ('frozenset', ((frozenset([1]),), {})),
+            ('datetime', ((datetime(2026, 1, 2, 3, 4, 5),), {})),
+            ('kwargs', ((), {'query': make_dict(('status', 'active'), ('ids', [1, 2])), 'limit': 5})),
+            ('shared list', (([shared_list, shared_list],), {})),
+            ('shared list and dict', ((make_dict(('b', shared_list), ('a', shared_list)),), {})),
         ]
     )
 
