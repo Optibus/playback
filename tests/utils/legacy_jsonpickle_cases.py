@@ -66,6 +66,40 @@ class Reduced(object):
         return Reduced, (self.values,)
 
 
+class StateWithoutSetstate(object):
+    def __init__(self, values):
+        self.values = values
+
+    def __getstate__(self):
+        return {'values': self.values}
+
+
+class ListState(object):
+    def __init__(self, values):
+        self.values = values
+
+    def __getstate__(self):
+        return self.values
+
+
+class SlotsStateWithoutSetstate(object):
+    def __init__(self, first, second):
+        self.first = first
+        self.second = second
+
+    def __getstate__(self):
+        return {'first': self.first}, {'second': self.second}
+
+
+class ListSlotsStateWithoutSetstate(object):
+    def __init__(self, first, second):
+        self.first = first
+        self.second = second
+
+    def __getstate__(self):
+        return {'first': self.first}, [self.second]
+
+
 class BytesState(object):
     def __init__(self, raw):
         self.raw = raw
@@ -106,6 +140,8 @@ def build_cases():
     shared_frozenset = frozenset([5])
     reduced_values = [6, 7]
     reduced = Reduced(reduced_values)
+    state_values = [14, 15]
+    after_state = ['after state']
 
     return OrderedDict(
         [
@@ -141,6 +177,37 @@ def build_cases():
             ('shared frozenset', [shared_frozenset, shared_frozenset]),
             ('shared reduce argument', [reduced, reduced_values, reduced]),
             (
+                'state without setstate',
+                [
+                    WithState([10]),
+                    StateWithoutSetstate({'list': [8, 9], 'dict': {'list': [11]}}),
+                    after_state,
+                    after_state,
+                ],
+            ),
+            ('slots state without setstate', [SlotsStateWithoutSetstate([12], [13]), after_state, after_state]),
+            (
+                'list state in state without setstate',
+                [StateWithoutSetstate({'list state': ListState([16])}), after_state, after_state],
+            ),
+            (
+                'list slots state without setstate',
+                [ListSlotsStateWithoutSetstate([17], [18]), after_state, after_state],
+            ),
+            (
+                'object in state without setstate',
+                [StateWithoutSetstate({'object': Node('in state'), 'list': [19]}), after_state, after_state],
+            ),
+            (
+                'shared list in state without setstate',
+                [
+                    StateWithoutSetstate({'list': state_values, 'same list': state_values}),
+                    ['before'],
+                    after_state,
+                    after_state,
+                ],
+            ),
+            (
                 'recording like',
                 {
                     '_metadata': {'_tape_recorder_operation_class': Node, 'duration': 1.5},
@@ -158,7 +225,8 @@ def describe(value, seen=None):
     Text form of a value that shows its type, its content and which containers and objects are shared
     """
     seen = {} if seen is None else seen
-    if isinstance(value, (list, dict, Node, WithState, WithSlots, Reduced, deque)):
+    tracked_types = (list, dict, Node, WithState, WithSlots, Reduced, StateWithoutSetstate, SlotsStateWithoutSetstate)
+    if isinstance(value, tracked_types + (deque,)):
         if id(value) in seen:
             return '<ref {}>'.format(seen[id(value)][0])
 
@@ -178,6 +246,12 @@ def describe(value, seen=None):
 
     if isinstance(value, Reduced):
         return 'Reduced({})'.format(describe(value.values, seen))
+
+    if isinstance(value, StateWithoutSetstate):
+        return 'StateWithoutSetstate({})'.format(describe(value.values, seen))
+
+    if isinstance(value, SlotsStateWithoutSetstate):
+        return 'SlotsStateWithoutSetstate({}, {})'.format(describe(value.first, seen), describe(value.second, seen))
 
     if isinstance(value, BytesState):
         return 'BytesState({})'.format(describe(value.raw, seen))

@@ -155,6 +155,36 @@
   "expected": "list[Reduced(list[int(6), int(7)]), <ref 2>, <ref 3>]"
  },
  {
+  "name": "state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.WithState\", \"py/state\": {\"stored\": [10]}}, {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.StateWithoutSetstate\", \"py/state\": {\"values\": {\"dict\": {\"list\": [11]}, \"list\": [8, 9]}}}, [\"after state\"], {\"py/id\": 6}]",
+  "expected": "list[WithState(list[int(10)]), StateWithoutSetstate(dict{'dict': dict{'list': list[int(11)]}, 'list': list[int(8), int(9)]}), list[str('after state')], <ref 7>]"
+ },
+ {
+  "name": "slots state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.SlotsStateWithoutSetstate\", \"py/state\": {\"py/tuple\": [{\"first\": [12]}, {\"second\": [13]}]}}, [\"after state\"], {\"py/id\": 4}]",
+  "expected": "list[SlotsStateWithoutSetstate(list[int(12)], list[int(13)]), list[str('after state')], <ref 4>]"
+ },
+ {
+  "name": "list state in state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.StateWithoutSetstate\", \"py/state\": {\"values\": {\"list state\": {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.ListState\", \"py/state\": [16]}}}}, [\"after state\"], {\"py/id\": 4}]",
+  "expected": "list[StateWithoutSetstate(dict{'list state': list[int(16)]}), list[str('after state')], <ref 4>]"
+ },
+ {
+  "name": "list slots state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.ListSlotsStateWithoutSetstate\", \"py/state\": {\"py/tuple\": [{\"first\": [17]}, [[18]]]}}, [\"after state\"], {\"py/id\": 5}]",
+  "expected": "list[tuple(dict{'first': list[int(17)]}, list[list[int(18)]]), list[str('after state')], <ref 6>]"
+ },
+ {
+  "name": "object in state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.StateWithoutSetstate\", \"py/state\": {\"values\": {\"list\": [19], \"object\": {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"in state\", \"parent\": null}}}}, [\"after state\"], {\"py/id\": 5}]",
+  "expected": "list[StateWithoutSetstate(dict{'list': list[int(19)], 'object': Node(in state, children=list[], parent=NoneType(None))}), list[str('after state')], <ref 4>]"
+ },
+ {
+  "name": "shared list in state without setstate",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.StateWithoutSetstate\", \"py/state\": {\"values\": {\"list\": [14, 15], \"same list\": {\"py/id\": 2}}}}, [\"before\"], [\"after state\"], {\"py/id\": 4}]",
+  "expected": "list[StateWithoutSetstate(dict{'list': list[int(14), int(15)], 'same list': list[int(14), int(15)]}), list[str('before')], list[str('after state')], <ref 5>]"
+ },
+ {
   "name": "recording like",
   "encoded": "{\"_metadata\": {\"_tape_recorder_operation_class\": {\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Node\"}, \"duration\": 1.5}, \"input: get args={\\\"py/tuple\\\": []}, kwargs=[]\": {\"value\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [1]}, null, null, null]}, [1, 2], {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"shared\", \"parent\": null}]}, \"output: _tape_recorder_operation #1\": {\"args\": [{\"py/id\": 3}, {\"py/object\": \"decimal.Decimal\", \"__reduce__\": [{\"py/type\": \"decimal.Decimal\"}, {\"py/tuple\": [\"2.5\"]}]}], \"kwargs\": {}}, \"output: store #1\": {\"args\": {\"py/tuple\": [{\"py/id\": 2}, {\"when\": {\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [0, 3600, 0]}]}}]}, \"kwargs\": {}}}",
   "expected": "dict{'_metadata': dict{'_tape_recorder_operation_class': type(<class 'tests.utils.legacy_jsonpickle_cases.Node'>), 'duration': float(1.5)}, 'input: get args={\"py/tuple\": []}, kwargs=[]': dict{'value': list[Color(<Color.RED: 1>), list[int(1), int(2)], Node(shared, children=list[], parent=NoneType(None))]}, 'output: _tape_recorder_operation #1': dict{'args': list[<ref 6>, Decimal(Decimal('2.5'))], 'kwargs': dict{}}, 'output: store #1': dict{'args': tuple(<ref 5>, dict{'when': timedelta(datetime.timedelta(seconds=3600))}), 'kwargs': dict{}}}"

@@ -58,7 +58,7 @@ def decode_legacy(encoded):
         return jsonpickle.decode(encoded)
 
     flattened = json.loads(encoded)
-    # Copies a bug of the 0.9.x unpickler on purpose, so that a replay gives the same values with all versions
+    # Copies two bugs of the 0.9.x unpickler on purpose, so that a replay gives the same values with all versions
     _renumber_legacy_references(flattened)
     _upgrade_legacy_flattened(flattened)
     # jsonpickle 0.9.x does not give a reference id to a dict, v1_decode restores the ids the same way
@@ -70,7 +70,8 @@ def _renumber_legacy_references(flattened):
     Changes, in place, the py/id references of a flattened value that jsonpickle 0.9.x encoded, so that later versions
     restore them to the same objects as the 0.9.x unpickler. The 0.9.x pickler numbers a py/reduce object before the
     objects in it, but the 0.9.x unpickler numbers it after them. Thus, with 0.9.x, a reference to such an object or to
-    an object in it restores another object.
+    an object in it restores another object. The 0.9.x unpickler also numbers the lists in the state of an object
+    without __setstate__ twice, so a later reference restores another object.
     :param flattened: Value that jsonpickle 0.9.x flattened, as loaded from JSON
     :type flattened: object
     """
@@ -102,7 +103,7 @@ def _add_legacy_restore_order(node, pickler_order, unpickler_order, references):
         tag = None
         children = node
     elif isinstance(node, dict):
-        tag = next((tag for tag in _LEGACY_RESTORE_TAGS if tag in node), None)
+        tag = _legacy_restore_tag(node)
         children = _legacy_restored_children(node, tag)
     else:
         return
@@ -123,6 +124,23 @@ def _add_legacy_restore_order(node, pickler_order, unpickler_order, references):
 
     if tag == tags.REDUCE:
         unpickler_order.append(node)
+
+    if tag == tags.OBJECT and tags.STATE in node and _is_legacy_state_restored_again(node[tags.OBJECT]):
+        _add_legacy_state_restored_again(node[tags.STATE], unpickler_order)
+
+
+def _legacy_restore_tag(node):
+    """
+    :param node: Part of a flattened value
+    :type node: object
+    :return: The tag by which the 0.9.x unpickler restores the part, None for a plain dict and for a value that is not
+    a dict
+    :rtype: str
+    """
+    if not isinstance(node, dict):
+        return None
+
+    return next((tag for tag in _LEGACY_RESTORE_TAGS if tag in node), None)
 
 
 def _legacy_restored_children(node, tag):
@@ -180,6 +198,101 @@ def _legacy_restored_object_children(node):
         children.append(node[tags.STATE])
 
     return children
+
+
+def _is_legacy_state_restored_again(class_name):
+    """
+    :param class_name: The py/object name of a flattened object
+    :type class_name: str
+    :return: Does the 0.9.x unpickler restore the state of the object twice: the class has no __setstate__. It does
+    not when the class cannot be loaded, because it then does not restore the object.
+    :rtype: bool
+    """
+    cls = jsonpickle.unpickler.loadclass(class_name)
+    return cls is not None and not hasattr(cls, '__setstate__')
+
+
+def _add_legacy_state_restored_again(state, unpickler_order):
+    """
+    Walks the state of an object the second time that the 0.9.x unpickler restores it. To set the restored state on an
+    object without __setstate__, the 0.9.x unpickler restores the values of the restored state again: of the dict, or
+    of the two dicts of a (dict, slots dict) tuple, the slots dict first.
+    :param state: The py/state part of a flattened object
+    :type state: object
+    :param unpickler_order: Gets the parts that are numbered again
+    :type unpickler_order: list
+    """
+    if _is_legacy_plain_dict(state):
+        state_dicts = [state]
+    elif _legacy_restore_tag(state) == tags.TUPLE and len(state[tags.TUPLE]) == 2:
+        instance_dict, slots_dict = state[tags.TUPLE]
+        if not _is_legacy_plain_dict(slots_dict):
+            return
+
+        state_dicts = [slots_dict, instance_dict] if _is_legacy_plain_dict(instance_dict) else [slots_dict]
+    else:
+        return
+
+    for state_dict in state_dicts:
+        for _, value in sorted(state_dict.items(), key=lambda item: item[0]):
+            _add_legacy_restored_again(value, unpickler_order)
+
+
+def _add_legacy_restored_again(node, unpickler_order):
+    """
+    Walks a part of a restored state as the 0.9.x unpickler restores it again: it restores a list as a new list, which
+    gets a number, and the values in a dict again. It keeps the other values. An object that was restored as its state
+    list is a list here. The new list is equal to the first one, so it is added to the order as the same part, and a
+    reference to it restores an equal list. But later versions do not make the new lists: two equal lists of the 0.9.x
+    unpickler can be one list.
+    :param node: Part of the py/state part of a flattened object
+    :type node: object
+    :param unpickler_order: Gets the parts that are numbered again
+    :type unpickler_order: list
+    """
+    if _legacy_restore_tag(node) == tags.ID:
+        index = node[tags.ID]
+        node = unpickler_order[index] if isinstance(index, int) and 0 <= index < len(unpickler_order) else None
+    elif _legacy_restore_tag(node) == tags.OBJECT and _is_legacy_object_restored_as_state_list(node):
+        node = node[tags.STATE]
+
+    if isinstance(node, list):
+        unpickler_order.append(node)
+        children = node
+    elif _is_legacy_plain_dict(node):
+        children = [value for _, value in sorted(node.items(), key=lambda item: item[0])]
+    else:
+        return
+
+    for child in children:
+        _add_legacy_restored_again(child, unpickler_order)
+
+
+def _is_legacy_object_restored_as_state_list(node):
+    """
+    :param node: Flattened object
+    :type node: dict
+    :return: Does the 0.9.x unpickler restore the object as its py/state list: the state is a list, and the class has
+    no __setstate__, __getnewargs__ or __getnewargs_ex__
+    :rtype: bool
+    """
+    if not isinstance(node.get(tags.STATE), list):
+        return False
+
+    cls = jsonpickle.unpickler.loadclass(node[tags.OBJECT])
+    return cls is not None and not any(
+        hasattr(cls, name) for name in ('__setstate__', '__getnewargs__', '__getnewargs_ex__')
+    )
+
+
+def _is_legacy_plain_dict(node):
+    """
+    :param node: Part of a flattened value
+    :type node: object
+    :return: Is the part a dict that the 0.9.x unpickler restores as a plain dict
+    :rtype: bool
+    """
+    return isinstance(node, dict) and _legacy_restore_tag(node) is None
 
 
 def _upgrade_legacy_flattened(flattened):
