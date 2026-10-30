@@ -125,6 +125,16 @@
   "expected": "Node(root, children=list[Node(child, children=list[], parent=<ref 1>)], parent=NoneType(None))"
  },
  {
+  "name": "shared list in iterator",
+  "encoded": "[{\"py/object\": \"__builtin__.list_iterator\", \"py/iterator\": [[1, 2], 3]}, {\"py/id\": 2}]",
+  "expected": "list[iterator[list[int(1), int(2)], int(3)], <ref 2>]"
+ },
+ {
+  "name": "shared new argument",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.WithNewArgsEx\", \"py/newargsex\": [{\"py/tuple\": [[1, 2]]}, {\"second\": [4]}], \"first\": {\"py/id\": 2}, \"second\": {\"py/id\": 3}}, {\"py/id\": 2}]",
+  "expected": "list[WithNewArgsEx(list[int(1), int(2)], list[int(4)]), <ref 2>]"
+ },
+ {
   "name": "shared legacy types",
   "encoded": "[{\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [0, 7, 0]}]}, {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [2]}, null, null, null]}, {\"py/object\": \"__builtin__.frozenset\", \"py/reduce\": [{\"py/type\": \"__builtin__.frozenset\"}, {\"py/tuple\": [[4]]}, null, null, null]}, [1, 2], {\"py/id\": 5}]",
   "expected": "list[timedelta(datetime.timedelta(seconds=7)), Color(<Color.BLUE: 2>), frozenset(frozenset({4})), list[int(1), int(2)], <ref 2>]"
@@ -133,6 +143,16 @@
   "name": "ordered dict then list",
   "encoded": "[{\"py/object\": \"collections.OrderedDict\", \"__reduce__\": [{\"py/type\": \"collections.OrderedDict\"}, {\"py/tuple\": [[[\"z\", [1, 2]]]]}]}, {\"py/id\": 4}]",
   "expected": "list[OrderedDict{'z': list[int(1), int(2)]}, <ref 3>]"
+ },
+ {
+  "name": "shared frozenset",
+  "encoded": "[{\"py/object\": \"__builtin__.frozenset\", \"py/reduce\": [{\"py/type\": \"__builtin__.frozenset\"}, {\"py/tuple\": [[5]]}, null, null, null]}, {\"py/id\": 1}]",
+  "expected": "list[frozenset(frozenset({5})), list[int(5)]]"
+ },
+ {
+  "name": "shared reduce argument",
+  "encoded": "[{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Reduced\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Reduced\"}, {\"py/tuple\": [[6, 7]]}, null, null, null]}, {\"py/id\": 2}, {\"py/id\": 1}]",
+  "expected": "list[Reduced(list[int(6), int(7)]), <ref 2>, <ref 3>]"
  },
  {
   "name": "recording like",

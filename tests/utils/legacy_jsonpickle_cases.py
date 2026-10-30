@@ -2,6 +2,7 @@ import json
 import os
 import time
 from collections import OrderedDict, Counter, deque, defaultdict, namedtuple
+from collections.abc import Iterator
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
@@ -57,6 +58,14 @@ class TaggedDict(dict):
     pass
 
 
+class Reduced(object):
+    def __init__(self, values):
+        self.values = values
+
+    def __reduce__(self):
+        return Reduced, (self.values,)
+
+
 class BytesState(object):
     def __init__(self, raw):
         self.raw = raw
@@ -66,6 +75,17 @@ class BytesState(object):
 
     def __setstate__(self, state):
         self.raw = state
+
+
+class WithNewArgsEx(object):
+    def __new__(cls, first, second=None):
+        instance = super(WithNewArgsEx, cls).__new__(cls)
+        instance.first = first
+        instance.second = second
+        return instance
+
+    def __getnewargs_ex__(self):
+        return (self.first,), {'second': self.second}
 
 
 Fingerprint = namedtuple('Fingerprint', 'name version')
@@ -83,6 +103,9 @@ def build_cases():
     root.children.append(child)
     tagged_list = TaggedList([shared_list, 3])
     tagged_list.tag = 'tagged'
+    shared_frozenset = frozenset([5])
+    reduced_values = [6, 7]
+    reduced = Reduced(reduced_values)
 
     return OrderedDict(
         [
@@ -111,8 +134,12 @@ def build_cases():
             ('shared list in two dicts', [{'k': shared_list}, {'k': shared_list}]),
             ('shared object', [shared_node, shared_node]),
             ('cycle', root),
+            ('shared list in iterator', [iter([shared_list, 3]), shared_list]),
+            ('shared new argument', [WithNewArgsEx(shared_list, [4]), shared_list]),
             ('shared legacy types', [timedelta(seconds=7), Color.BLUE, frozenset([4]), shared_list, shared_list]),
             ('ordered dict then list', [OrderedDict([('z', shared_list)]), shared_list]),
+            ('shared frozenset', [shared_frozenset, shared_frozenset]),
+            ('shared reduce argument', [reduced, reduced_values, reduced]),
             (
                 'recording like',
                 {
@@ -131,7 +158,7 @@ def describe(value, seen=None):
     Text form of a value that shows its type, its content and which containers and objects are shared
     """
     seen = {} if seen is None else seen
-    if isinstance(value, (list, dict, Node, WithState, WithSlots, deque)):
+    if isinstance(value, (list, dict, Node, WithState, WithSlots, Reduced, deque)):
         if id(value) in seen:
             return '<ref {}>'.format(seen[id(value)][0])
 
@@ -149,8 +176,17 @@ def describe(value, seen=None):
     if isinstance(value, WithSlots):
         return 'WithSlots({}, {})'.format(describe(value.first, seen), describe(value.second, seen))
 
+    if isinstance(value, Reduced):
+        return 'Reduced({})'.format(describe(value.values, seen))
+
     if isinstance(value, BytesState):
         return 'BytesState({})'.format(describe(value.raw, seen))
+
+    if isinstance(value, WithNewArgsEx):
+        return 'WithNewArgsEx({}, {})'.format(describe(value.first, seen), describe(value.second, seen))
+
+    if isinstance(value, Iterator):
+        return 'iterator[{}]'.format(', '.join(describe(item, seen) for item in value))
 
     if isinstance(value, (TaggedList, TaggedDict)):
         content = list(value) if isinstance(value, list) else dict(value)
