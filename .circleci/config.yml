@@ -55,6 +55,22 @@ jobs:
       - store_test_results:
           path: ./results
 
+  python311-tests:
+    docker:
+      - image: cimg/python:3.11.15
+    steps:
+      - checkout
+      - run:
+          command: pip install -e .[dev]
+      - run:
+          command: |
+            mkdir ./results
+            pytest --cov=playback --cov-config=.coveragerc tests --junit-xml=./results/python311-tests.xml
+      - run:
+          command: pip install codecov && codecov -t ${CODECOV_TOKEN}
+      - store_test_results:
+          path: ./results
+
   deploy:
     docker:
       - image: cimg/python:3.10.13
@@ -93,6 +109,10 @@ workflows:
             tags:
               only: /.*/
       - python3-tests:
+          filters:
+            tags:
+              only: /.*/
+      - python311-tests:
           filters:
             tags:
               only: /.*/
