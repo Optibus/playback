@@ -1,0 +1,54 @@
+[
+ {
+  "name": "dict",
+  "key": "input: get args={\"py/tuple\": [{\"_id\": {\"$exists\": true, \"$in\": [3, 1, 2]}, \"plan_id\": 1}]}, kwargs=[]"
+ },
+ {
+  "name": "enum",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [1]}, null, null, null]}, \"x\"]}, kwargs=[]"
+ },
+ {
+  "name": "enum in dict",
+  "key": "input: get args={\"py/tuple\": [{\"enabled\": true, \"module\": {\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Color\", \"py/reduce\": [{\"py/type\": \"tests.utils.legacy_jsonpickle_cases.Color\"}, {\"py/tuple\": [2]}, null, null, null]}}]}, kwargs=[]"
+ },
+ {
+  "name": "timedelta and decimal",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"datetime.timedelta\", \"__reduce__\": [{\"py/type\": \"datetime.timedelta\"}, {\"py/tuple\": [1, 0, 0]}]}, {\"py/object\": \"decimal.Decimal\", \"__reduce__\": [{\"py/type\": \"decimal.Decimal\"}, {\"py/tuple\": [\"1.5\"]}]}]}, kwargs=[]"
+ },
+ {
+  "name": "bytes",
+  "key": "input: get args={\"py/tuple\": [{\"py/b64\": \"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4\\nOTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiYw==\\n\"}]}, kwargs=[]"
+ },
+ {
+  "name": "ordered dict",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"collections.OrderedDict\", \"__reduce__\": [{\"py/type\": \"collections.OrderedDict\"}, {\"py/tuple\": [[[\"z\", 1], [\"y\", 2]]]}]}]}, kwargs=[]"
+ },
+ {
+  "name": "namedtuple",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Fingerprint\", \"py/newargs\": {\"py/tuple\": [\"data\", 3]}, \"py/seq\": [\"data\", 3]}]}, kwargs=[]"
+ },
+ {
+  "name": "object",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [{\"py/object\": \"tests.utils.legacy_jsonpickle_cases.Node\", \"children\": [], \"name\": \"child\", \"parent\": null}], \"name\": \"node\", \"parent\": null}]}, kwargs=[]"
+ },
+ {
+  "name": "frozenset",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"__builtin__.frozenset\", \"py/reduce\": [{\"py/type\": \"__builtin__.frozenset\"}, {\"py/tuple\": [[1]]}, null, null, null]}]}, kwargs=[]"
+ },
+ {
+  "name": "datetime",
+  "key": "input: get args={\"py/tuple\": [{\"py/object\": \"datetime.datetime\", \"__reduce__\": [{\"py/type\": \"datetime.datetime\"}, [\"B+oBAgMEBQAAAA==\"]]}]}, kwargs=[]"
+ },
+ {
+  "name": "kwargs",
+  "key": "input: get args={\"py/tuple\": []}, kwargs=[{\"py/tuple\": [\"limit\", 5]}, {\"py/tuple\": [\"query\", {\"ids\": [1, 2], \"status\": \"active\"}]}]"
+ },
+ {
+  "name": "shared list",
+  "key": "input: get args={\"py/tuple\": [[[1, 2], {\"py/id\": 1}]]}, kwargs=[]"
+ },
+ {
+  "name": "shared list and dict",
+  "key": "input: get args={\"py/tuple\": [{\"a\": [1, 2], \"b\": {\"py/id\": 0}}]}, kwargs=[]"
+ }
+]

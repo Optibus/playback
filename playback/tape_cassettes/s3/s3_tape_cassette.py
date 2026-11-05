@@ -15,6 +15,8 @@ from playback.recordings.factory import get_recording_class
 from playback.tape_cassette import TapeCassette
 from playback.recordings.memory.memory_recording import MemoryRecording
 from playback.tape_cassettes.s3.s3_basic_facade import S3BasicFacade
+from playback.tape_recorder import TapeRecorder
+from playback.utils.legacy_jsonpickle import decode_legacy, is_legacy_jsonpickle_version
 
 _logger = logging.getLogger(__name__)
 
@@ -26,8 +28,18 @@ class S3TapeCassette(TapeCassette):
     RECORDING_ID = '{category}/{day}/{id}'
     DAY_FORMAT = '%Y%m%d'
 
-    def __init__(self, bucket, key_prefix='', region=None, transient=False, read_only=True,
-                 infrequent_access_kb_threshold=None, sampling_calculator=None, recording_type=MemoryRecording):
+    def __init__(  # pylint: disable=too-many-arguments
+        self,
+        bucket,
+        key_prefix='',
+        region=None,
+        transient=False,
+        read_only=True,
+        infrequent_access_kb_threshold=None,
+        sampling_calculator=None,
+        recording_type=MemoryRecording,
+        legacy_recordings_compatibility=False,
+    ):
         """
         :param bucket: Cassette s3 storage bucket
         :type bucket: str
@@ -48,6 +60,15 @@ class S3TapeCassette(TapeCassette):
         function will be triggered with (category, recording_size, recording),
         and the function should return a number between 0 and 1 which specify its sampling rate
         :type sampling_calculator: function
+        :param recording_type: Recording class of new recordings
+        :type recording_type: type
+        :param legacy_recordings_compatibility: If True, a recording that jsonpickle 0.9.x encoded is decoded with
+        playback.utils.legacy_jsonpickle.decode_legacy, so that it can be replayed with a later jsonpickle version.
+        A recording is taken as encoded by 0.9.x when its metadata has no jsonpickle version, as all the recordings
+        made before the version was added to the metadata. Turn it on only when those recordings were encoded by
+        0.9.x: a recording that a later version encoded without a version in its metadata can decode incorrectly when
+        it contains py/id references.
+        :type legacy_recordings_compatibility: bool
         """
         _logger.info(u'Creating S3TapeCassette using bucket {}'.format(bucket))
         self.bucket = bucket
@@ -62,6 +83,7 @@ class S3TapeCassette(TapeCassette):
         self._recording_id_parser = compile(self.RECORDING_ID)
         self._s3_facade = S3BasicFacade(self.bucket, region=region)
         self._recording_type = recording_type
+        self.legacy_recordings_compatibility = legacy_recordings_compatibility
 
     def get_recording(self, recording_id):
         """
@@ -75,10 +97,13 @@ class S3TapeCassette(TapeCassette):
         metadata = self.get_recording_metadata(recording_id)
 
         recording_class = get_recording_class(metadata)
+        legacy_jsonpickle = self.legacy_recordings_compatibility and self._has_legacy_jsonpickle_version(metadata)
 
         try:
             with self._s3_facade.get_buffered_reader(full_key) as buffered_reader:
-                return recording_class.from_buffered_reader(recording_id, buffered_reader, metadata)
+                return recording_class.from_buffered_reader(
+                    recording_id, buffered_reader, metadata, legacy_jsonpickle=legacy_jsonpickle
+                )
         except Exception as ex:
             if 'NoSuchKey' in type(ex).__name__:
                 raise NoSuchRecording(recording_id)
@@ -102,7 +127,20 @@ class S3TapeCassette(TapeCassette):
                 raise NoSuchRecording(recording_id)
             raise
         _logger.debug(u'Decoding metadata of recording of key {}'.format(metadata_key))
+        if self.legacy_recordings_compatibility and self._has_legacy_jsonpickle_version(json.loads(serialized_data)):
+            return decode_legacy(serialized_data)
+
         return decode(serialized_data)
+
+    @staticmethod
+    def _has_legacy_jsonpickle_version(metadata):
+        """
+        :param metadata: Recording metadata, decoded or only loaded from JSON
+        :type metadata: dict
+        :return: Was the recording encoded by jsonpickle 0.9.x
+        :rtype: bool
+        """
+        return is_legacy_jsonpickle_version(metadata.get(TapeRecorder.JSONPICKLE_VERSION))
 
     def create_new_recording(self, category):
         """

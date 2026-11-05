@@ -142,12 +142,14 @@ class CachedReadOnlyS3TapeCassette(S3TapeCassette):
         sampling_calculator=None,
         local_path=None,
         use_cache=True,
+        legacy_recordings_compatibility=False,
     ):
         if read_only is not True:
             raise ValueError("CachedReadOnlyS3TapeCassette is designed to be in read_only state only")
         super(CachedReadOnlyS3TapeCassette, self).__init__(
             bucket, key_prefix, region, transient, read_only=read_only,
             infrequent_access_kb_threshold=infrequent_access_kb_threshold,
-            sampling_calculator=sampling_calculator
+            sampling_calculator=sampling_calculator,
+            legacy_recordings_compatibility=legacy_recordings_compatibility,
         )
         self._s3_facade = CachedS3BasicFacade(self.bucket, region=region, cache_path=local_path, use_cache=use_cache)

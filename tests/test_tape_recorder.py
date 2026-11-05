@@ -1462,6 +1462,20 @@ class TestTapeRecorder(unittest.TestCase):
         self.assertTrue(bool(TapeRecorder._extract_recorded_output(recording)))
         self.assertLessEqual({TapeRecorder.INCOMPLETE_RECORDING: False}.items(), recording.get_metadata().items())
 
+    def test_recording_metadata_has_jsonpickle_version(self):
+
+        class Operation(object):
+
+            @self.tape_recorder.operation()
+            def execute(self):
+                return 5
+
+        Operation().execute()
+
+        recording_id = self.tape_cassette.get_last_recording_id()
+        recording = self.tape_cassette.get_recording(recording_id)
+        self.assertEqual(jsonpickle.__version__, recording.get_metadata()[TapeRecorder.JSONPICKLE_VERSION])
+
     def test_record_and_playback_basic_operation_data_retrieval_copy_data(self):
         @self.tape_recorder.recording_params(RecordingParameters(copy_data_on_intercepion=True))
         class Operation(object):
