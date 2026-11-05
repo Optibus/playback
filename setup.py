@@ -6,7 +6,7 @@ from setuptools.command.install import install
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-VERSION = '0.3.38'
+VERSION = '0.3.39'
 
 
 class VerifyVersionCommand(install):
